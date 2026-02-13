@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка v7.0 (Local Server)</title>
+    <title>WebRTC Звонилка v8.0 (Webhook)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -136,11 +136,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v7.0</h1>
+        <h1>📱 WebRTC Звонилка v8.0</h1>
         
         <div class="server-info">
-            <strong>Локальный сервер:</strong><br>
-            Работает через localStorage - не требует интернет
+            <strong>Сервер сигнализации:</strong><br>
+            Webhook.site - публичный и бесплатный
         </div>
 
         <div class="input-group">
@@ -165,6 +165,7 @@
         let isInitiator = false;
         let roomKey = '';
         let pollingInterval = null;
+        let webhookUrl = null;
 
         // WebRTC конфигурация
         const configuration = {
@@ -189,70 +190,52 @@
             callStatusEl.classList.remove('hidden');
         }
 
-        // Локальное хранилище как сервер
-        class LocalSignalingServer {
-            constructor() {
-                this.prefix = 'webrtc_';
-            }
+        // Webhook.site API функции
+        function getWebhookUrl(roomKey) {
+            // Используем уникальный URL для каждой комнаты
+            return `https://webhook.site/${roomKey}`;
+        }
 
-            setRoom(roomKey, data) {
-                const key = this.prefix + roomKey;
-                localStorage.setItem(key, JSON.stringify({
-                    ...data,
-                    timestamp: Date.now()
-                }));
-                
-                // Триггер для других вкладок
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key: key,
-                    newValue: localStorage.getItem(key)
-                }));
-            }
-
-            getRoom(roomKey) {
-                const key = this.prefix + roomKey;
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : null;
-            }
-
-            deleteRoom(roomKey) {
-                const key = this.prefix + roomKey;
-                localStorage.removeItem(key);
-                
-                // Триггер для других вкладок
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key: key,
-                    newValue: null
-                }));
-            }
-
-            watchRoom(roomKey, callback) {
-                const key = this.prefix + roomKey;
-                
-                const checkStorage = () => {
-                    const data = this.getRoom(roomKey);
-                    if (data) {
-                        callback(data);
-                    }
-                };
-
-                // Проверяем localStorage события
-                window.addEventListener('storage', (e) => {
-                    if (e.key === key && e.newValue) {
-                        callback(JSON.parse(e.newValue));
-                    }
+        async function sendDataToWebhook(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        roomKey: roomKey,
+                        data: data,
+                        timestamp: Date.now()
+                    })
                 });
-
-                // Периодическая проверка
-                const interval = setInterval(() => {
-                    checkStorage();
-                }, 1000);
-
-                return () => clearInterval(interval);
+                return await response.json();
+            } catch (error) {
+                console.error('Ошибка отправки данных:', error);
+                throw error;
             }
         }
 
-        const signalingServer = new LocalSignalingServer();
+        async function getDataFromWebhook(url) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const text = await response.text();
+                    // Webhook.site возвращает данные как plain text
+                    if (text && text !== 'OK') {
+                        try {
+                            return JSON.parse(text);
+                        } catch {
+                            return null;
+                        }
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error('Ошибка получения данных:', error);
+                return null;
+            }
+        }
 
         function stopPolling() {
             if (pollingInterval) {
@@ -335,16 +318,14 @@
                 createPeerConnection();
                 
                 isInitiator = true;
-                
-                // Очищаем старую комнату
-                signalingServer.deleteRoom(roomKey);
+                webhookUrl = getWebhookUrl(roomKey);
                 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                // Сохраняем offer в localStorage
-                signalingServer.setRoom(roomKey, {
-                    roomKey: roomKey,
+                // Отправляем offer на webhook
+                await sendDataToWebhook(webhookUrl, {
+                    type: 'offer',
                     offer: offer,
                     status: 'waiting'
                 });
@@ -353,11 +334,11 @@
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                updateStatus('✅ Offer создан. Ожидание ответа...', 'success');
+                updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
                 updateCallStatus('⏳ Ожидание собеседника...');
                 
-                // Начинаем слушать answer
-                startAnswerListener();
+                // Начинаем опрос answer
+                startAnswerPolling();
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -378,36 +359,39 @@
                 createPeerConnection();
                 
                 isInitiator = false;
+                webhookUrl = getWebhookUrl(roomKey);
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                // Начинаем слушать offer
-                startOfferListener();
+                // Начинаем опрос offer
+                startOfferPolling();
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
             }
         }
 
-        function startOfferListener() {
+        function startOfferPolling() {
             updateStatus('🔍 Поиск offer...', 'info');
             
-            const unwatch = signalingServer.watchRoom(roomKey, async (roomData) => {
+            pollingInterval = setInterval(async () => {
                 try {
-                    if (roomData.offer && !peerConnection.currentRemoteDescription) {
-                        const offer = roomData.offer;
+                    const data = await getDataFromWebhook(webhookUrl);
+                    
+                    if (data && data.data && data.data.type === 'offer' && !peerConnection.currentRemoteDescription) {
+                        const offer = data.data.offer;
                         
                         await peerConnection.setRemoteDescription(offer);
                         
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
-                        // Обновляем комнату с answer
-                        signalingServer.setRoom(roomKey, {
-                            roomKey: roomKey,
-                            offer: roomData.offer,
+                        // Отправляем answer на webhook
+                        await sendDataToWebhook(webhookUrl, {
+                            type: 'answer',
+                            offer: offer,
                             answer: answer,
                             status: 'connected'
                         });
@@ -415,33 +399,35 @@
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Устанавливаем соединение...');
                         
-                        unwatch();
+                        stopPolling();
                     }
                 } catch (error) {
-                    console.error('Ошибка обработки offer:', error);
+                    console.error('Ошибка опроса offer:', error);
                 }
-            });
+            }, 3000); // Опрос каждые 3 секунды
         }
 
-        function startAnswerListener() {
+        function startAnswerPolling() {
             updateStatus('🔍 Ожидание answer...', 'info');
             
-            const unwatch = signalingServer.watchRoom(roomKey, async (roomData) => {
+            pollingInterval = setInterval(async () => {
                 try {
-                    if (roomData.answer && !peerConnection.currentRemoteDescription) {
-                        const answer = roomData.answer;
+                    const data = await getDataFromWebhook(webhookUrl);
+                    
+                    if (data && data.data && data.data.type === 'answer' && !peerConnection.currentRemoteDescription) {
+                        const answer = data.data.answer;
                         
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
                         updateCallStatus('📞 Звонок активен');
                         
-                        unwatch();
+                        stopPolling();
                     }
                 } catch (error) {
-                    console.error('Ошибка обработки answer:', error);
+                    console.error('Ошибка опроса answer:', error);
                 }
-            });
+            }, 3000); // Опрос каждые 3 секунды
         }
 
         function endCall() {
@@ -458,11 +444,7 @@
             }
             
             remoteStream = null;
-            
-            // Очищаем комнату
-            if (roomKey) {
-                signalingServer.deleteRoom(roomKey);
-            }
+            webhookUrl = null;
             
             // Сбрасываем интерфейс
             document.getElementById('createCallBtn').disabled = false;
