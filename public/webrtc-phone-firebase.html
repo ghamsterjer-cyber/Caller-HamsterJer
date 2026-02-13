@@ -175,78 +175,61 @@
         // Firebase REST API конфигурация
         const FIREBASE_URL = "https://webrtc-phone-app-default-rtdb.europe-west1.firebasedatabase.app";
         
-        // REST API функции для работы с Firebase
+        // Универсальные REST API функции
+        async function put(path, data) {
+            const url = `${FIREBASE_URL}/${path}.json?print=silent`;
+            return fetch(url, {
+                method: "PUT",
+                body: JSON.stringify(data)
+            });
+        }
+        
+        async function post(path, data) {
+            const url = `${FIREBASE_URL}/${path}.json?print=silent`;
+            return fetch(url, {
+                method: "POST",
+                body: JSON.stringify(data)
+            });
+        }
+        
+        async function get(path) {
+            const url = `${FIREBASE_URL}/${path}.json`;
+            const res = await fetch(url);
+            return res.json();
+        }
+        
+        async function del(path) {
+            const url = `${FIREBASE_URL}/${path}.json`;
+            return fetch(url, { method: "DELETE" });
+        }
+        
+        // Специализированные функции для комнат
         async function createRoom(roomId, data) {
-            const url = `${FIREBASE_URL}/rooms/${roomId}.json`;
-            try {
-                const response = await fetch(url, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(data),
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка создания комнаты:', error);
-                throw error;
-            }
+            return put(`rooms/${roomId}`, data);
         }
         
         async function getRoom(roomId) {
-            const url = `${FIREBASE_URL}/rooms/${roomId}.json`;
-            try {
-                const response = await fetch(url);
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка получения комнаты:', error);
-                return null;
-            }
+            return get(`rooms/${roomId}`);
         }
         
         async function setOffer(roomId, offer) {
-            const url = `${FIREBASE_URL}/rooms/${roomId}/offer.json`;
-            try {
-                const response = await fetch(url, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sdp: offer.sdp,
-                        type: offer.type,
-                        timestamp: Date.now()
-                    }),
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка сохранения offer:', error);
-                throw error;
-            }
+            return put(`rooms/${roomId}/offer`, {
+                sdp: offer.sdp,
+                type: offer.type,
+                timestamp: Date.now()
+            });
         }
         
         async function setAnswer(roomId, answer) {
-            const url = `${FIREBASE_URL}/rooms/${roomId}/answer.json`;
-            try {
-                const response = await fetch(url, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sdp: answer.sdp,
-                        type: answer.type,
-                        timestamp: Date.now()
-                    }),
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка сохранения answer:', error);
-                throw error;
-            }
+            return put(`rooms/${roomId}/answer`, {
+                sdp: answer.sdp,
+                type: answer.type,
+                timestamp: Date.now()
+            });
         }
         
         async function deleteRoom(roomId) {
-            const url = `${FIREBASE_URL}/rooms/${roomId}.json`;
-            try {
-                await fetch(url, { method: "DELETE" });
-            } catch (error) {
-                console.error('Ошибка удаления комнаты:', error);
-            }
+            return del(`rooms/${roomId}`);
         }
         
         // Функции для опроса изменений
