@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка v5.0 (GitHub Gist)</title>
+    <title>WebRTC Звонилка v3.0 (P2P)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -38,7 +38,7 @@
             font-weight: bold;
             color: #555;
         }
-        input {
+        input, textarea {
             width: 100%;
             padding: 15px;
             border: 2px solid #e1e1e1;
@@ -47,9 +47,15 @@
             font-size: 16px;
             transition: border-color 0.3s;
         }
-        input:focus {
+        input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 12px;
         }
         button {
             width: 100%;
@@ -69,6 +75,10 @@
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #155724;
         }
         .btn-danger {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
@@ -116,13 +126,16 @@
         .hidden {
             display: none;
         }
-        .server-info {
+        .section {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 20px;
             border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            color: #666;
+            margin: 15px 0;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
         }
         .pulse {
             animation: pulse 2s infinite;
@@ -136,22 +149,45 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v5.0</h1>
+        <h1>📱 WebRTC Звонилка v3.0</h1>
         
-        <div class="server-info">
-            <strong>Сервер сигнализации:</strong><br>
-            GitHub Gist - надежный и бесплатный
-        </div>
-
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
             <input type="text" id="roomKey" placeholder="Введите ключ (например: 1111)" value="1111">
         </div>
 
         <div class="input-group">
-            <button id="createCallBtn" class="btn-primary" onclick="createCall()">📞 Создать звонок</button>
-            <button id="joinCallBtn" class="btn-primary" onclick="joinCall()">📞 Присоединиться к звонку</button>
+            <button id="createCallBtn" class="btn-primary" onclick="createCall()">📞 Звонок</button>
+            <button id="joinCallBtn" class="btn-primary" onclick="joinCall()">📞 Принять звонок</button>
             <button id="endCallBtn" class="btn-danger hidden" onclick="endCall()">🔚 Завершить звонок</button>
+        </div>
+
+        <!-- Секция для создателя звонка -->
+        <div id="creatorSection" class="section hidden">
+            <div class="section-title">📤 Ваш Offer (отправьте другому телефону):</div>
+            <textarea id="offerText" readonly></textarea>
+            <button class="btn-success" onclick="copyOffer()">📋 Копировать Offer</button>
+        </div>
+
+        <!-- Секция для принимающего звонок -->
+        <div id="joinerSection" class="section hidden">
+            <div class="section-title">📥 Вставьте Offer от другого телефона:</div>
+            <textarea id="remoteOfferText" placeholder="Вставьте сюда offer..."></textarea>
+            <button class="btn-success" onclick="processRemoteOffer()">✅ Создать Answer</button>
+        </div>
+
+        <!-- Секция с answer -->
+        <div id="answerSection" class="section hidden">
+            <div class="section-title">📤 Ваш Answer (отправьте инициатору):</div>
+            <textarea id="answerText" readonly></textarea>
+            <button class="btn-success" onclick="copyAnswer()">📋 Копировать Answer</button>
+        </div>
+
+        <!-- Секция для вставки answer -->
+        <div id="finalSection" class="section hidden">
+            <div class="section-title">📥 Вставьте Answer от другого телефона:</div>
+            <textarea id="finalAnswerText" placeholder="Вставьте сюда answer..."></textarea>
+            <button class="btn-success" onclick="processFinalAnswer()">✅ Установить соединение</button>
         </div>
 
         <div id="status" class="status info">📱 Готов к работе</div>
@@ -164,10 +200,8 @@
         let peerConnection = null;
         let isInitiator = false;
         let roomKey = '';
-        let pollingInterval = null;
-        let gistId = null;
 
-        // WebRTC конфигурация
+        // WebRTC конфигурация с бесплатными STUN серверами
         const configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -188,76 +222,6 @@
             const callStatusEl = document.getElementById('callStatus');
             callStatusEl.textContent = message;
             callStatusEl.classList.remove('hidden');
-        }
-
-        // GitHub Gist API функции
-        async function createGist(data) {
-            try {
-                const response = await fetch('https://api.github.com/gists', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({
-                        description: `WebRTC Room: ${roomKey}`,
-                        public: true,
-                        files: {
-                            'webrtc-data.json': {
-                                content: JSON.stringify(data)
-                            }
-                        }
-                    })
-                });
-                const result = await response.json();
-                return result.id;
-            } catch (error) {
-                console.error('Ошибка создания gist:', error);
-                throw error;
-            }
-        }
-
-        async function readGist(gistId) {
-            try {
-                const response = await fetch(`https://api.github.com/gists/${gistId}`);
-                const result = await response.json();
-                const content = result.files['webrtc-data.json'].content;
-                return JSON.parse(content);
-            } catch (error) {
-                console.error('Ошибка чтения gist:', error);
-                return null;
-            }
-        }
-
-        async function updateGist(gistId, data) {
-            try {
-                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({
-                        description: `WebRTC Room: ${roomKey} - Updated`,
-                        files: {
-                            'webrtc-data.json': {
-                                content: JSON.stringify(data)
-                            }
-                        }
-                    })
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка обновления gist:', error);
-                throw error;
-            }
-        }
-
-        function stopPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
         }
 
         async function initLocalStream() {
@@ -285,7 +249,7 @@
 
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат получен');
+                        console.log('ICE кандидат получен:', event.candidate);
                     }
                 };
 
@@ -300,7 +264,6 @@
                     
                     if (peerConnection.connectionState === 'connected') {
                         updateCallStatus('📞 Соединение установлено');
-                        stopPolling();
                     } else if (peerConnection.connectionState === 'disconnected' || 
                               peerConnection.connectionState === 'failed') {
                         updateCallStatus('🔇 Соединение разорвано');
@@ -338,23 +301,14 @@
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                // Создаем gist с offer
-                gistId = await createGist({
-                    roomKey: roomKey,
-                    offer: offer,
-                    status: 'waiting',
-                    timestamp: Date.now()
-                });
-                
+                // Показываем offer пользователю
+                document.getElementById('offerText').value = JSON.stringify(offer, null, 2);
+                document.getElementById('creatorSection').classList.remove('hidden');
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
-                document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
-                updateCallStatus('⏳ Ожидание собеседника...');
-                
-                // Начинаем опрос answer
-                startAnswerPolling();
+                updateStatus('✅ Offer создан. Отправьте другому телефону.', 'success');
+                updateCallStatus('⏳ Ожидание answer...');
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -369,99 +323,76 @@
                     return;
                 }
 
-                updateStatus('🔄 Поиск звонка...', 'info');
+                updateStatus('🔄 Подготовка к приему звонка...', 'info');
                 
                 await initLocalStream();
                 createPeerConnection();
                 
                 isInitiator = false;
                 
+                // Показываем секцию для вставки offer
+                document.getElementById('joinerSection').classList.remove('hidden');
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
-                document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                // Начинаем опрос offer
-                startOfferPolling();
+                updateStatus('📥 Вставьте offer от другого телефона', 'info');
                 
             } catch (error) {
-                updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
+                updateStatus(`❌ Ошибка подготовки к звонку: ${error.message}`, 'error');
             }
         }
 
-        function startOfferPolling() {
-            updateStatus('🔍 Поиск offer...', 'info');
-            
-            pollingInterval = setInterval(async () => {
-                try {
-                    // Ищем gist по описанию (простой подход)
-                    const response = await fetch('https://api.github.com/gists/public');
-                    const gists = await response.json();
-                    
-                    const targetGist = gists.find(gist => 
-                        gist.description && 
-                        gist.description.includes(`WebRTC Room: ${roomKey}`) &&
-                        gist.files['webrtc-data.json'] &&
-                        !gist.description.includes('Updated')
-                    );
-                    
-                    if (targetGist && !peerConnection.currentRemoteDescription) {
-                        gistId = targetGist.id;
-                        const gistData = await readGist(gistId);
-                        const offer = gistData.offer;
-                        
-                        await peerConnection.setRemoteDescription(offer);
-                        
-                        const answer = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answer);
-                        
-                        // Обновляем gist с answer
-                        await updateGist(gistId, {
-                            roomKey: roomKey,
-                            offer: offer,
-                            answer: answer,
-                            status: 'connected',
-                            timestamp: Date.now()
-                        });
-                        
-                        updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
-                        
-                        stopPolling();
-                    }
-                } catch (error) {
-                    console.error('Ошибка опроса offer:', error);
+        async function processRemoteOffer() {
+            try {
+                const offerText = document.getElementById('remoteOfferText').value;
+                if (!offerText) {
+                    updateStatus('❌ Вставьте offer', 'error');
+                    return;
                 }
-            }, 3000); // Опрос каждые 3 секунды
+
+                const offer = JSON.parse(offerText);
+                await peerConnection.setRemoteDescription(offer);
+                
+                // Создаем answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                // Показываем answer
+                document.getElementById('answerText').value = JSON.stringify(answer, null, 2);
+                document.getElementById('answerSection').classList.remove('hidden');
+                document.getElementById('joinerSection').classList.add('hidden');
+                
+                updateStatus('✅ Answer создан. Отправьте инициатору.', 'success');
+                updateCallStatus('📞 Ожидание подключения...');
+                
+            } catch (error) {
+                updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
+            }
         }
 
-        function startAnswerPolling() {
-            updateStatus('🔍 Ожидание answer...', 'info');
-            
-            pollingInterval = setInterval(async () => {
-                try {
-                    if (!gistId) return;
-                    
-                    const gistData = await readGist(gistId);
-                    
-                    if (gistData && gistData.answer && !peerConnection.currentRemoteDescription) {
-                        const answer = gistData.answer;
-                        
-                        await peerConnection.setRemoteDescription(answer);
-                        
-                        updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                        
-                        stopPolling();
-                    }
-                } catch (error) {
-                    console.error('Ошибка опроса answer:', error);
+        async function processFinalAnswer() {
+            try {
+                const answerText = document.getElementById('finalAnswerText').value;
+                if (!answerText) {
+                    updateStatus('❌ Вставьте answer', 'error');
+                    return;
                 }
-            }, 3000); // Опрос каждые 3 секунды
+
+                const answer = JSON.parse(answerText);
+                await peerConnection.setRemoteDescription(answer);
+                
+                document.getElementById('finalSection').classList.add('hidden');
+                document.getElementById('endCallBtn').classList.remove('hidden');
+                
+                updateStatus('✅ Звонок установлен!', 'success');
+                updateCallStatus('📞 Звонок активен');
+                
+            } catch (error) {
+                updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
+            }
         }
 
         function endCall() {
-            stopPolling();
-            
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
@@ -473,15 +404,38 @@
             }
             
             remoteStream = null;
-            gistId = null;
             
             // Сбрасываем интерфейс
+            document.getElementById('creatorSection').classList.add('hidden');
+            document.getElementById('joinerSection').classList.add('hidden');
+            document.getElementById('answerSection').classList.add('hidden');
+            document.getElementById('finalSection').classList.add('hidden');
+            document.getElementById('endCallBtn').classList.add('hidden');
             document.getElementById('createCallBtn').disabled = false;
             document.getElementById('joinCallBtn').disabled = false;
-            document.getElementById('endCallBtn').classList.add('hidden');
+            
+            // Очищаем поля
+            document.getElementById('offerText').value = '';
+            document.getElementById('remoteOfferText').value = '';
+            document.getElementById('answerText').value = '';
+            document.getElementById('finalAnswerText').value = '';
             
             updateStatus('📞 Звонок завершен', 'info');
             updateCallStatus('🔇 Нет звонка');
+        }
+
+        function copyOffer() {
+            const offerText = document.getElementById('offerText');
+            offerText.select();
+            document.execCommand('copy');
+            updateStatus('📋 Offer скопирован в буфер обмена', 'success');
+        }
+
+        function copyAnswer() {
+            const answerText = document.getElementById('answerText');
+            answerText.select();
+            document.execCommand('copy');
+            updateStatus('📋 Answer скопирован в буфер обмена', 'success');
         }
 
         window.onload = function() {
