@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Финальная рабочая версия</title>
+    <title>WebRTC Звонилка - Чистая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,29 +60,25 @@
             font-weight: bold;
             cursor: pointer;
             margin-bottom: 15px;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
         }
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
         }
         .btn-danger {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
         }
         .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.4);
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
         }
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
         .status {
             padding: 15px;
@@ -92,15 +88,15 @@
             text-align: center;
         }
         .status.success {
-            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            background: #d4edda;
             color: #155724;
         }
         .status.error {
-            background: linear-gradient(135deg, #fccb90 0%, #ff9a9e 100%);
+            background: #f8d7da;
             color: #721c24;
         }
         .status.info {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            background: #d1ecf1;
             color: #0c5460;
         }
         .call-status {
@@ -128,11 +124,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка Final 2</h1>
+        <h1>📱 HJWebRTC Звонилка</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
-            <input type="text" id="roomKey" placeholder="Введите ключ (например: 1111)" value="1111">
+            <input type="text" id="roomKey" placeholder="Введите ключ (например: 1111)" value="">
         </div>
 
         <div class="input-group">
@@ -212,12 +208,6 @@
                 });
                 localStream = stream;
                 
-                // Создаем аудио элемент для локального прослушивания
-                const localAudio = new Audio();
-                localAudio.srcObject = localStream;
-                localAudio.volume = 0; // Тихий звук для себя
-                localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
-                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -253,20 +243,15 @@
                 };
 
                 peerConnection.ontrack = (event) => {
-                    console.log('✅ Получен удаленный поток!', event.streams);
-                    
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
                         
-                        // Создаем аудио элемент для воспроизведения
                         const remoteAudio = new Audio();
                         remoteAudio.srcObject = remoteStream;
-                        remoteAudio.play().catch(e => console.error('Ошибка воспроизведения:', e));
+                        remoteAudio.play();
                         
                         updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
                         updateCallStatus('📞 Звонок активен');
-                    } else {
-                        console.log('Получен трек без потока:', event.track);
                     }
                 };
 
@@ -430,7 +415,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты:', roomData);
                 
-                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.offer && peerConnection.remoteDescription === null) {
                     try {
                         console.log('📥 Получен offer');
                         
@@ -455,7 +440,7 @@
                         console.log('✅ Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Звонок активен');
                         
                         // Отписываемся от offer
                         roomRef.off('value');
@@ -481,7 +466,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты (answer):', roomData);
                 
-                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.answer && peerConnection.remoteDescription === null) {
                     try {
                         console.log('📥 Получен answer');
                         
@@ -493,7 +478,7 @@
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Звонок активен');
                         
                         // Отписываемся от answer
                         roomRef.off('value');
