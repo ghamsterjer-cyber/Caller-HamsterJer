@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка v2.0</title>
+    <title>WebRTC Звонилка - Чистая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v6.0</h1>
+        <h1>📱 WebRTC Звонилка Clean</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -227,9 +227,9 @@
                     if (event.candidate) {
                         console.log('ICE кандидат получен:', event.candidate);
                         // Отправляем ICE кандидат в Firebase
-                        if (isInitiator) {
+                        if (isInitiator && roomKey) {
                             database.ref(`rooms/${roomKey}/callerCandidates`).push(event.candidate);
-                        } else {
+                        } else if (!isInitiator && roomKey) {
                             database.ref(`rooms/${roomKey}/calleeCandidates`).push(event.candidate);
                         }
                     }
@@ -267,9 +267,23 @@
             }
         }
 
+        function listenForIceCandidates(candidateType) {
+            if (!roomKey) return;
+            
+            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
+            candidatesRef.on('child_added', async (snapshot) => {
+                const candidate = snapshot.val();
+                console.log('Получен ICE кандидат:', candidate);
+                try {
+                    await peerConnection.addIceCandidate(candidate);
+                } catch (error) {
+                    console.error('Ошибка добавления ICE кандидата:', error);
+                }
+            });
+        }
+
         async function createCall() {
             try {
-                // Проверяем доступность Firebase
                 if (!database || !database.ref) {
                     updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
                     return;
@@ -324,7 +338,6 @@
 
         async function joinCall() {
             try {
-                // Проверяем доступность Firebase
                 if (!database || !database.ref) {
                     updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
                     return;
@@ -350,12 +363,17 @@
                 // Начинаем слушать offer
                 startOfferListener();
                 
+                // Начинаем слушать ICE кандидаты от звонящего
+                listenForIceCandidates('callerCandidates');
+                
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
             }
         }
 
         function startOfferListener() {
+            if (!roomKey) return;
+            
             updateStatus('🔍 Ожидание offer...', 'info');
             
             const roomRef = database.ref(`rooms/${roomKey}`);
@@ -402,20 +420,9 @@
             });
         }
 
-        function listenForIceCandidates(candidateType) {
-            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
-            candidatesRef.on('child_added', async (snapshot) => {
-                const candidate = snapshot.val();
-                console.log('Получен ICE кандидат:', candidate);
-                try {
-                    await peerConnection.addIceCandidate(candidate);
-                } catch (error) {
-                    console.error('Ошибка добавления ICE кандидата:', error);
-                }
-            });
-        }
-
         function startAnswerListener() {
+            if (!roomKey) return;
+            
             updateStatus('🔍 Ожидание answer...', 'info');
             
             const roomRef = database.ref(`rooms/${roomKey}`);
