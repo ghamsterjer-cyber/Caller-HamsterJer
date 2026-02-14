@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка</h1>
+        <h1>📱 HJWebRTC Звонилка 2</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -415,7 +415,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты:', roomData);
                 
-                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.offer && peerConnection.signalingState === 'stable') {
                     try {
                         console.log('📥 Получен offer');
                         
@@ -466,7 +466,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты (answer):', roomData);
                 
-                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.answer && peerConnection.signalingState === 'have-local-offer') {
                     try {
                         console.log('📥 Получен answer');
                         
