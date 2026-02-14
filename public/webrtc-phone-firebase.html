@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v3.0</h1>
+        <h1>📱 WebRTC Звонилка v4.0</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -379,6 +379,9 @@
                         // Отписываемся от offer
                         roomRef.off('value');
                         
+                        // Начинаем проверять состояние соединения
+                        checkConnectionState();
+                        
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
@@ -386,6 +389,25 @@
                     console.log('Offer еще не найден, ждем...');
                 }
             });
+        }
+
+        function checkConnectionState() {
+            const checkInterval = setInterval(() => {
+                if (peerConnection) {
+                    console.log('Состояние соединения:', peerConnection.connectionState);
+                    
+                    if (peerConnection.connectionState === 'connected') {
+                        updateStatus('✅ Соединение установлено!', 'success');
+                        updateCallStatus('📞 Звонок активен');
+                        clearInterval(checkInterval);
+                    } else if (peerConnection.connectionState === 'failed' || 
+                              peerConnection.connectionState === 'disconnected') {
+                        updateStatus('❌ Соединение не удалось', 'error');
+                        updateCallStatus('🔇 Соединение разорвано');
+                        clearInterval(checkInterval);
+                    }
+                }
+            }, 1000);
         }
 
         function startAnswerListener() {
@@ -409,10 +431,13 @@
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Звонок активен');
+                        updateCallStatus('📞 Устанавливаем соединение...');
                         
                         // Отписываемся от answer
                         roomRef.off('value');
+                        
+                        // Начинаем проверять состояние соединения
+                        checkConnectionState();
                         
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
