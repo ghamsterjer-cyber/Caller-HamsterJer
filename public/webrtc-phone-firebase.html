@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - ICE Fixed</title>
+    <title>WebRTC Звонилка - Базовая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка ICE2</h1>
+        <h1>📱 WebRTC Звонилка Basic</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -177,14 +177,10 @@
             updateStatus('❌ Ошибка Firebase: ' + error.message, 'error');
         }
 
-        // WebRTC конфигурация
+        // WebRTC конфигурация - БЕЗ ICE КАНДИДАТОВ
         const configuration = {
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' }
             ]
         };
 
@@ -223,31 +219,13 @@
             try {
                 peerConnection = new RTCPeerConnection(configuration);
 
+                // БЕЗ ICE КАДИДАТОВ - просто логируем
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат получен:', event.candidate);
-                        // Отправляем ICE кандидат в Firebase
-                        if (isInitiator && roomKey) {
-                            console.log('Отправляем callerCandidate в Firebase');
-                            database.ref(`rooms/${roomKey}/callerCandidates`).push(event.candidate);
-                        } else if (!isInitiator && roomKey) {
-                            console.log('Отправляем calleeCandidate в Firebase');
-                            database.ref(`rooms/${roomKey}/calleeCandidates`).push(event.candidate);
-                        }
+                        console.log('ICE кандидат (игнорируем):', event.candidate);
                     } else {
                         console.log('ICE кандидаты завершены');
                     }
-                };
-
-                peerConnection.onicegatheringstatechange = () => {
-                    console.log('ICE gathering state:', peerConnection.iceGatheringState);
-                    if (peerConnection.iceGatheringState === 'complete') {
-                        console.log('ICE сбор кандидатов завершен');
-                    }
-                };
-
-                peerConnection.onsignalingstatechange = () => {
-                    console.log('Signaling state:', peerConnection.signalingState);
                 };
 
                 peerConnection.ontrack = (event) => {
@@ -282,42 +260,6 @@
             }
         }
 
-        function listenForIceCandidates(candidateType) {
-            if (!roomKey) return;
-            
-            console.log(`Начинаем слушать ICE кандидаты типа: ${candidateType}`);
-            
-            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
-            
-            // Сначала проверяем есть ли уже кандидаты
-            candidatesRef.once('value', (snapshot) => {
-                const existingCandidates = snapshot.val();
-                if (existingCandidates) {
-                    console.log(`Найдены существующие кандидаты:`, existingCandidates);
-                    Object.values(existingCandidates).forEach(async (candidate) => {
-                        try {
-                            await peerConnection.addIceCandidate(candidate);
-                            console.log('Существующий ICE кандидат добавлен');
-                        } catch (error) {
-                            console.error('Ошибка добавления существующего ICE кандидата:', error);
-                        }
-                    });
-                }
-            });
-            
-            // Слушаем новые кандидаты
-            candidatesRef.on('child_added', async (snapshot) => {
-                const candidate = snapshot.val();
-                console.log('Получен новый ICE кандидат:', candidate);
-                try {
-                    await peerConnection.addIceCandidate(candidate);
-                    console.log('Новый ICE кандидат успешно добавлен');
-                } catch (error) {
-                    console.error('Ошибка добавления нового ICE кандидата:', error);
-                }
-            });
-        }
-
         async function createCall() {
             try {
                 if (!database || !database.ref) {
@@ -344,14 +286,7 @@
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                console.log('Offer создан и установлен как локальный');
-                console.log('ICE gathering state после setLocalDescription:', peerConnection.iceGatheringState);
-                
-                // Принудительно запускаем сбор ICE кандидатов
-                if (peerConnection.iceGatheringState === 'new') {
-                    console.log('Принудительно запускаем сбор ICE кандидатов');
-                    // WebRTC автоматически начнет сбор кандидатов после setLocalDescription
-                }
+                console.log('Offer создан и установлен');
                 
                 // Сохраняем offer в Firebase
                 await database.ref(`rooms/${roomKey}`).set({
@@ -374,12 +309,6 @@
                 
                 // Начинаем слушать answer
                 startAnswerListener();
-                
-                // Начинаем слушать ICE кандидаты от отвечающего ПОСЛЕ установки offer
-                setTimeout(() => {
-                    console.log('Начинаем слушать ICE кандидаты от отвечающего');
-                    listenForIceCandidates('calleeCandidates');
-                }, 1000);
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -413,12 +342,6 @@
                 // Начинаем слушать offer
                 startOfferListener();
                 
-                // Начинаем слушать ICE кандидаты от звонящего ПОСЛЕ инициализации
-                setTimeout(() => {
-                    console.log('Начинаем слушать ICE кандидаты от звонящего');
-                    listenForIceCandidates('callerCandidates');
-                }, 1000);
-                
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
             }
@@ -449,14 +372,7 @@
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
-                        console.log('Answer создан и установлен как локальный');
-                        console.log('ICE gathering state после setLocalDescription:', peerConnection.iceGatheringState);
-                        
-                        // Принудительно запускаем сбор ICE кандидатов
-                        if (peerConnection.iceGatheringState === 'new') {
-                            console.log('Принудительно запускаем сбор ICE кандидатов');
-                            // WebRTC автоматически начнет сбор кандидатов после setLocalDescription
-                        }
+                        console.log('Answer создан и установлен');
                         
                         // Сохраняем answer в Firebase
                         await database.ref(`rooms/${roomKey}/answer`).set({
@@ -467,12 +383,13 @@
                         console.log('Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Ожидаем ICE кандидатов...');
+                        updateCallStatus('📞 Устанавливаем соединение...');
                         
                         // Отписываемся от offer
                         roomRef.off('value');
                         
                     } catch (error) {
+                        console.error('Ошибка обработки offer:', error);
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
                 } else {
@@ -504,12 +421,13 @@
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Ожидаем ICE кандидатов...');
+                        updateCallStatus('📞 Устанавливаем соединение...');
                         
                         // Отписываемся от answer
                         roomRef.off('value');
                         
                     } catch (error) {
+                        console.error('Ошибка обработки answer:', error);
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
                     }
                 } else {
