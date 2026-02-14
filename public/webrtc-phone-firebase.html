@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка</h1>
+        <h1>📱 HJWebRTC Звонилка2</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -211,7 +211,7 @@
                 // Создаем аудио элемент для локального прослушивания
                 const localAudio = new Audio();
                 localAudio.srcObject = localStream;
-                localAudio.volume = 0.1; // Тихий звук для себя
+                localAudio.volume = 0; // Заглушаем локальное воспроизведение
                 localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
                 
                 updateStatus('🎤 Микрофон подключен', 'success');
