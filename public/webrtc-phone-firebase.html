@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка Cl</h1>
+        <h1>📱 WebRTC Звонилка C2</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -308,6 +308,9 @@
                 // Очищаем предыдущие данные
                 await database.ref(`rooms/${roomKey}`).remove();
                 
+                // Начинаем слушать ICE кандидаты от отвечающего ДО создания offer
+                listenForIceCandidates('calleeCandidates');
+                
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
@@ -330,9 +333,6 @@
                 
                 // Начинаем слушать answer
                 startAnswerListener();
-                
-                // Начинаем слушать ICE кандидаты от отвечающего
-                listenForIceCandidates('calleeCandidates');
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -363,11 +363,11 @@
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
+                // Начинаем слушать ICE кандидатов от звонящего ДО поиска offer
+                listenForIceCandidates('callerCandidates');
+                
                 // Начинаем слушать offer
                 startOfferListener();
-                
-                // Начинаем слушать ICE кандидаты от звонящего
-                listenForIceCandidates('callerCandidates');
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
@@ -411,9 +411,6 @@
                         // Отписываемся от offer
                         roomRef.off('value');
                         
-                        // Начинаем слушать ICE кандидаты от звонящего
-                        listenForIceCandidates('callerCandidates');
-                        
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
@@ -450,9 +447,6 @@
                         
                         // Отписываемся от answer
                         roomRef.off('value');
-                        
-                        // Начинаем слушать ICE кандидаты от отвечающего
-                        listenForIceCandidates('calleeCandidates');
                         
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
