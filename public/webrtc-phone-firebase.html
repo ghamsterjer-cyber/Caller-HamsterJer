@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка</h1>
+        <h1>📱 HJWebRTC Звонилка1</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -139,6 +139,12 @@
 
         <div id="status" class="status info">📱 Готов к работе</div>
         <div id="callStatus" class="call-status hidden">🔇 Нет звонка</div>
+        
+        <!-- Логи для отладки на телефоне -->
+        <div style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px; max-height: 200px; overflow-y: auto;">
+            <div style="font-weight: bold; margin-bottom: 5px;">🔍 Логи отладки:</div>
+            <div id="debugLogs" style="font-family: monospace; white-space: pre-wrap;"></div>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -149,6 +155,16 @@
         let peerConnection = null;
         let isInitiator = false;
         let roomKey = '';
+
+        // Функция для добавления логов на страницу
+        function addLog(message) {
+            const logsEl = document.getElementById('debugLogs');
+            if (logsEl) {
+                logsEl.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+                logsEl.scrollTop = logsEl.scrollHeight;
+            }
+            console.log(message);
+        }
 
         // Firebase конфигурация
         const firebaseConfig = {
@@ -200,13 +216,23 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
+                        echoCancellation: false,  // Отключаем эхоподавление
+                        noiseSuppression: false,  // Отключаем подавление шума
                         autoGainControl: true
                     },
                     video: false 
                 });
                 localStream = stream;
+                
+                console.log('Локальный поток получен:', stream);
+                console.log('Аудио треки в потоке:', stream.getAudioTracks());
+                
+                // Создаем аудио элемент для локального прослушивания
+                const localAudio = new Audio();
+                localAudio.srcObject = localStream;
+                localAudio.volume = 0.3; // Тихий звук для себя
+                localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
+                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -238,8 +264,15 @@
 
                 // Получение удаленного потока
                 peerConnection.ontrack = (event) => {
+                    addLog('Получен ontrack event: ' + JSON.stringify({
+                        streams: event.streams ? event.streams.length : 0,
+                        track: event.track ? event.track.kind : 'none'
+                    }));
+                    
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
+                        addLog('Удаленный поток: ' + (remoteStream ? 'получен' : 'нет'));
+                        addLog('Аудио треки в удаленном потоке: ' + remoteStream.getAudioTracks().length);
                         
                         const remoteAudio = new Audio();
                         remoteAudio.srcObject = remoteStream;
@@ -254,18 +287,23 @@
                         const playPromise = remoteAudio.play();
                         if (playPromise !== undefined) {
                             playPromise.then(() => {
+                                addLog('✅ Удаленное аудио воспроизводится');
                                 updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
                                 updateCallStatus('📞 Звонок активен');
                             }).catch(e => {
+                                addLog('❌ Ошибка воспроизведения: ' + e.message);
                                 console.error('Ошибка воспроизведения:', e);
                                 updateStatus('❌ Ошибка воспроизведения аудио', 'error');
                             });
                         }
+                    } else {
+                        addLog('❌ Нет потоков в ontrack!');
                     }
                 };
 
                 // Состояние соединения
                 peerConnection.onconnectionstatechange = () => {
+                    console.log('Состояние соединения:', peerConnection.connectionState);
                     if (peerConnection.connectionState === 'connected') {
                         updateStatus('✅ Соединение установлено!', 'success');
                         updateCallStatus('📞 Звонок активен');
@@ -276,11 +314,15 @@
                     }
                 };
 
-                // Добавляем локальные треки
+                // Добавляем локальные треки СРАЗУ после создания соединения
+                addLog('Создаем PeerConnection, локальный поток: ' + (localStream ? 'есть' : 'нет'));
                 if (localStream) {
+                    addLog('Локальные треки ДО добавления: ' + localStream.getTracks().length);
                     localStream.getTracks().forEach(track => {
+                        addLog('Добавляем трек: ' + track.kind + ' ' + track.label + ' enabled:' + track.enabled);
                         peerConnection.addTrack(track, localStream);
                     });
+                    addLog('Локальные треки ПОСЛЕ добавления, проверяем: ' + peerConnection.getSenders().length);
                 }
 
                 return peerConnection;
