@@ -276,6 +276,10 @@
                               peerConnection.connectionState === 'failed') {
                         updateStatus('❌ Соединение разорвано', 'error');
                         updateCallStatus('🔇 Соединение разорвано');
+                    } else if (peerConnection.connectionState === 'connecting') {
+                        console.log('🔄 Соединение устанавливается...');
+                    } else if (peerConnection.connectionState === 'new') {
+                        console.log('🆕 Новое соединение создано');
                     }
                 };
 
@@ -451,7 +455,7 @@
                         console.log('✅ Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Звонок активен');
                         
                         // Отписываемся от offer
                         roomRef.off('value');
@@ -489,7 +493,7 @@
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Звонок активен');
                         
                         // Отписываемся от answer
                         roomRef.off('value');
