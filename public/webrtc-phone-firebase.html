@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Рабочая версия</title>
+    <title>WebRTC Звонилка - Чистая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка2</h1>
+        <h1>📱 HJWebRTC Звонилка</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -208,12 +208,6 @@
                 });
                 localStream = stream;
                 
-                // Создаем аудио элемент для локального прослушивания
-                const localAudio = new Audio();
-                localAudio.srcObject = localStream;
-                localAudio.volume = 0; // Заглушаем локальное воспроизведение
-                localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
-                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -257,48 +251,10 @@
                         // Создаем аудио элемент для воспроизведения
                         const remoteAudio = new Audio();
                         remoteAudio.srcObject = remoteStream;
+                        remoteAudio.play().catch(e => console.error('Ошибка воспроизведения:', e));
                         
-                        // Устанавливаем атрибуты для автовоспроизведения
-                        remoteAudio.autoplay = true;
-                        remoteAudio.muted = false;
-                        remoteAudio.volume = 1.0;
-                        
-                        // Пробуем воспроизвести сразу
-                        const playPromise = remoteAudio.play();
-                        
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {
-                                console.log('✅ Удаленное аудио успешно воспроизводится');
-                                updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                                updateCallStatus('📞 Звонок активен');
-                            }).catch(e => {
-                                console.error('❌ Ошибка воспроизведения удаленного аудио:', e);
-                                updateStatus(`❌ Ошибка воспроизведения: ${e.message}`, 'error');
-                            });
-                        } else {
-                            console.log('⚠️ Автовоспроизведение не поддерживается, пробуем другие методы');
-                            
-                            // Пробуем установить атрибуты после создания
-                            setTimeout(() => {
-                                remoteAudio.setAttribute('autoplay', 'true');
-                                remoteAudio.setAttribute('playsinline', 'true');
-                                remoteAudio.load();
-                                
-                                const retryPlay = remoteAudio.play();
-                                if (retryPlay !== undefined) {
-                                    retryPlay.then(() => {
-                                        console.log('✅ Удаленное аудио воспроизводится (повторная попытка)');
-                                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                                        updateCallStatus('📞 Звонок активен');
-                                    }).catch(e => {
-                                        console.error('❌ Ошибка повторного воспроизведения:', e);
-                                    });
-                                } else {
-                                    console.log('❌ Повторная попытка тоже не удалась');
-                                }
-                            }, 500);
-                        }
-                        
+                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                        updateCallStatus('📞 Звонок активен');
                     } else {
                         console.log('Получен трек без потока:', event.track);
                     }
@@ -314,10 +270,6 @@
                               peerConnection.connectionState === 'failed') {
                         updateStatus('❌ Соединение разорвано', 'error');
                         updateCallStatus('🔇 Соединение разорвано');
-                    } else if (peerConnection.connectionState === 'connecting') {
-                        console.log('🔄 Соединение устанавливается...');
-                    } else if (peerConnection.connectionState === 'new') {
-                        console.log('🆕 Новое соединение создано');
                     }
                 };
 
@@ -393,23 +345,17 @@
                 
                 console.log('✅ Offer создан');
                 
-                // Сохраняем offer в Firebase с обработкой ошибок
-                try {
-                    await database.ref(`rooms/${roomKey}`).set({
-                        offer: {
-                            sdp: offer.sdp,
-                            type: offer.type
-                        },
-                        status: 'waiting',
-                        timestamp: Date.now()
-                    });
-                    
-                    console.log('✅ Offer сохранен в Firebase');
-                } catch (firebaseError) {
-                    console.error('Ошибка сохранения offer:', firebaseError);
-                    updateStatus(`❌ Ошибка сохранения offer: ${firebaseError.message}`, 'error');
-                    return;
-                }
+                // Сохраняем offer в Firebase
+                await database.ref(`rooms/${roomKey}`).set({
+                    offer: {
+                        sdp: offer.sdp,
+                        type: offer.type
+                    },
+                    status: 'waiting',
+                    timestamp: Date.now()
+                });
+                
+                console.log('✅ Offer сохранен в Firebase');
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
@@ -490,19 +436,13 @@
                         
                         console.log('✅ Answer создан');
                         
-                        // Сохраняем answer в Firebase с обработкой ошибок
-                        try {
-                            await database.ref(`rooms/${roomKey}/answer`).set({
-                                sdp: answer.sdp,
-                                type: answer.type
-                            });
-                            
-                            console.log('✅ Answer сохранен в Firebase');
-                        } catch (firebaseError) {
-                            console.error('Ошибка сохранения answer:', firebaseError);
-                            updateStatus(`❌ Ошибка сохранения answer: ${firebaseError.message}`, 'error');
-                            return;
-                        }
+                        // Сохраняем answer в Firebase
+                        await database.ref(`rooms/${roomKey}/answer`).set({
+                            sdp: answer.sdp,
+                            type: answer.type
+                        });
+                        
+                        console.log('✅ Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Звонок активен');
