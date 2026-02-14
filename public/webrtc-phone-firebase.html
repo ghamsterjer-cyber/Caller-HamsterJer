@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Финальная рабочая версия</title>
+    <title>WebRTC Звонилка - Рабочая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,29 +60,25 @@
             font-weight: bold;
             cursor: pointer;
             margin-bottom: 15px;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
         }
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
         }
         .btn-danger {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
         }
         .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.4);
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
         }
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
         .status {
             padding: 15px;
@@ -92,15 +88,15 @@
             text-align: center;
         }
         .status.success {
-            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            background: #d4edda;
             color: #155724;
         }
         .status.error {
-            background: linear-gradient(135deg, #fccb90 0%, #ff9a9e 100%);
+            background: #f8d7da;
             color: #721c24;
         }
         .status.info {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            background: #d1ecf1;
             color: #0c5460;
         }
         .call-status {
@@ -215,7 +211,7 @@
                 // Создаем аудио элемент для локального прослушивания
                 const localAudio = new Audio();
                 localAudio.srcObject = localStream;
-                localAudio.volume = 0; // Тихий звук для себя
+                localAudio.volume = 0.1; // Тихий звук для себя
                 localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
                 
                 updateStatus('🎤 Микрофон подключен', 'success');
