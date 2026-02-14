@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v2.0</h1>
+        <h1>📱 WebRTC Звонилка v3.0</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -347,17 +347,19 @@
         function startOfferListener() {
             updateStatus('🔍 Ожидание offer...', 'info');
             
-            const roomRef = database.ref(`rooms/${roomKey}/offer`);
+            const roomRef = database.ref(`rooms/${roomKey}`);
             
             roomRef.on('value', async (snapshot) => {
-                const offerData = snapshot.val();
-                if (offerData && !peerConnection.currentRemoteDescription) {
+                const roomData = snapshot.val();
+                console.log('Данные комнаты:', roomData);
+                
+                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('Получен offer:', offerData);
+                        console.log('Получен offer:', roomData.offer);
                         
                         const offer = {
-                            type: offerData.type,
-                            sdp: offerData.sdp
+                            type: roomData.offer.type,
+                            sdp: roomData.offer.sdp
                         };
                         
                         await peerConnection.setRemoteDescription(offer);
@@ -380,6 +382,8 @@
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
+                } else {
+                    console.log('Offer еще не найден, ждем...');
                 }
             });
         }
@@ -387,17 +391,19 @@
         function startAnswerListener() {
             updateStatus('🔍 Ожидание answer...', 'info');
             
-            const roomRef = database.ref(`rooms/${roomKey}/answer`);
+            const roomRef = database.ref(`rooms/${roomKey}`);
             
             roomRef.on('value', async (snapshot) => {
-                const answerData = snapshot.val();
-                if (answerData && !peerConnection.currentRemoteDescription) {
+                const roomData = snapshot.val();
+                console.log('Данные комнаты (answer):', roomData);
+                
+                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('Получен answer:', answerData);
+                        console.log('Получен answer:', roomData.answer);
                         
                         const answer = {
-                            type: answerData.type,
-                            sdp: answerData.sdp
+                            type: roomData.answer.type,
+                            sdp: roomData.answer.sdp
                         };
                         
                         await peerConnection.setRemoteDescription(answer);
@@ -411,6 +417,8 @@
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
                     }
+                } else {
+                    console.log('Answer еще не найден, ждем...');
                 }
             });
         }
