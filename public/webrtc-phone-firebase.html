@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Чистая версия</title>
+    <title>WebRTC Звонилка - Финальная рабочая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,25 +60,29 @@
             font-weight: bold;
             cursor: pointer;
             margin-bottom: 15px;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         .btn-primary:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
         .btn-danger {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
         }
         .btn-danger:hover {
-            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.4);
         }
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .status {
             padding: 15px;
@@ -88,15 +92,15 @@
             text-align: center;
         }
         .status.success {
-            background: #d4edda;
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
             color: #155724;
         }
         .status.error {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #fccb90 0%, #ff9a9e 100%);
             color: #721c24;
         }
         .status.info {
-            background: #d1ecf1;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
             color: #0c5460;
         }
         .call-status {
@@ -124,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка</h1>
+        <h1>📱 HJWebRTC Звонилка Final</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -208,6 +212,12 @@
                 });
                 localStream = stream;
                 
+                // Создаем аудио элемент для локального прослушивания
+                const localAudio = new Audio();
+                localAudio.srcObject = localStream;
+                localAudio.volume = 0; // Тихий звук для себя
+                localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
+                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -229,7 +239,7 @@
                             sdpMLineIndex: event.candidate.sdpMLineIndex,
                             sdpMid: event.candidate.sdpMid
                         };
-                        
+
                         if (isInitiator && roomKey) {
                             console.log('Отправляем callerCandidate');
                             database.ref(`rooms/${roomKey}/callerCandidates`).push(candidateData);
@@ -262,7 +272,7 @@
 
                 peerConnection.onconnectionstatechange = () => {
                     console.log('Состояние соединения:', peerConnection.connectionState);
-                    
+
                     if (peerConnection.connectionState === 'connected') {
                         updateStatus('✅ Соединение установлено!', 'success');
                         updateCallStatus('📞 Звонок активен');
@@ -290,22 +300,22 @@
 
         function listenForIceCandidates(candidateType) {
             if (!roomKey || !peerConnection) return;
-            
+
             console.log(`Начинаем слушать ${candidateType}`);
-            
+
             const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
-            
+
             candidatesRef.on('child_added', async (snapshot) => {
                 const candidateData = snapshot.val();
                 console.log(`Получен ${candidateType}:`, candidateData);
-                
+
                 try {
                     const candidate = new RTCIceCandidate({
                         candidate: candidateData.candidate,
                         sdpMLineIndex: candidateData.sdpMLineIndex,
                         sdpMid: candidateData.sdpMid
                     });
-                    
+
                     await peerConnection.addIceCandidate(candidate);
                     console.log(`${candidateType} добавлен успешно`);
                 } catch (error) {
@@ -328,23 +338,23 @@
                 }
 
                 updateStatus('🔄 Создание звонка...', 'info');
-                
+
                 await initLocalStream();
                 createPeerConnection();
-                
+
                 isInitiator = true;
-                
+
                 // Очищаем предыдущие данные
                 await database.ref(`rooms/${roomKey}`).remove();
-                
+
                 // Начинаем слушать ICE кандидаты ДО создания offer
                 listenForIceCandidates('calleeCandidates');
-                
+
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                
+
                 console.log('✅ Offer создан');
-                
+
                 // Сохраняем offer в Firebase
                 await database.ref(`rooms/${roomKey}`).set({
                     offer: {
@@ -354,19 +364,19 @@
                     status: 'waiting',
                     timestamp: Date.now()
                 });
-                
+
                 console.log('✅ Offer сохранен в Firebase');
-                
+
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
-                
+
                 updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
                 updateCallStatus('⏳ Ожидание собеседника...');
-                
+
                 // Начинаем слушать answer
                 startAnswerListener();
-                
+
             } catch (error) {
                 console.error('Ошибка создания звонка:', error);
                 updateStatus(`❌ Ошибка: ${error.message}`, 'error');
@@ -387,22 +397,22 @@
                 }
 
                 updateStatus('🔄 Поиск звонка...', 'info');
-                
+
                 await initLocalStream();
                 createPeerConnection();
-                
+
                 isInitiator = false;
-                
+
                 // Начинаем слушать ICE кандидаты ДО поиска offer
                 listenForIceCandidates('callerCandidates');
-                
+
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
-                
+
                 // Начинаем слушать offer
                 startOfferListener();
-                
+
             } catch (error) {
                 console.error('Ошибка присоединения:', error);
                 updateStatus(`❌ Ошибка: ${error.message}`, 'error');
@@ -411,45 +421,45 @@
 
         function startOfferListener() {
             if (!roomKey) return;
-            
+
             updateStatus('🔍 Ожидание offer...', 'info');
-            
+
             const roomRef = database.ref(`rooms/${roomKey}`);
-            
+
             roomRef.on('value', async (snapshot) => {
                 const roomData = snapshot.val();
                 console.log('Данные комнаты:', roomData);
-                
+
                 if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
                     try {
                         console.log('📥 Получен offer');
-                        
+
                         const offer = {
                             type: roomData.offer.type,
                             sdp: roomData.offer.sdp
                         };
-                        
+
                         await peerConnection.setRemoteDescription(offer);
-                        
+
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
-                        
+
                         console.log('✅ Answer создан');
-                        
+
                         // Сохраняем answer в Firebase
                         await database.ref(`rooms/${roomKey}/answer`).set({
                             sdp: answer.sdp,
                             type: answer.type
                         });
-                        
+
                         console.log('✅ Answer сохранен в Firebase');
-                        
+
                         updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                        
+                        updateCallStatus('📞 Устанавливаем соединение...');
+
                         // Отписываемся от offer
                         roomRef.off('value');
-                        
+
                     } catch (error) {
                         console.error('Ошибка обработки offer:', error);
                         updateStatus(`❌ Ошибка: ${error.message}`, 'error');
@@ -462,32 +472,32 @@
 
         function startAnswerListener() {
             if (!roomKey) return;
-            
+
             updateStatus('🔍 Ожидание answer...', 'info');
-            
+
             const roomRef = database.ref(`rooms/${roomKey}`);
-            
+
             roomRef.on('value', async (snapshot) => {
                 const roomData = snapshot.val();
                 console.log('Данные комнаты (answer):', roomData);
-                
+
                 if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
                     try {
                         console.log('📥 Получен answer');
-                        
+
                         const answer = {
                             type: roomData.answer.type,
                             sdp: roomData.answer.sdp
                         };
-                        
+
                         await peerConnection.setRemoteDescription(answer);
-                        
+
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                        
+                        updateCallStatus('📞 Устанавливаем соединение...');
+
                         // Отписываемся от answer
                         roomRef.off('value');
-                        
+
                     } catch (error) {
                         console.error('Ошибка обработки answer:', error);
                         updateStatus(`❌ Ошибка: ${error.message}`, 'error');
@@ -503,24 +513,24 @@
                 peerConnection.close();
                 peerConnection = null;
             }
-            
+
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
             }
-            
+
             remoteStream = null;
-            
+
             // Очищаем комнату
             if (roomKey) {
                 database.ref(`rooms/${roomKey}`).remove();
             }
-            
+
             // Сбрасываем интерфейс
             document.getElementById('createCallBtn').disabled = false;
             document.getElementById('joinCallBtn').disabled = false;
             document.getElementById('endCallBtn').classList.add('hidden');
-            
+
             updateStatus('📞 Звонок завершен', 'info');
             updateCallStatus('🔇 Нет звонка');
         }
