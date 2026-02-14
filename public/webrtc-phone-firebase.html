@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка</h1>
+        <h1>📱 WebRTC Звонилка HJ</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -621,7 +621,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты:', roomData);
                 
-                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.offer && peerConnection && peerConnection.signalingState === 'stable') {
                     try {
                         console.log('📥 Получен offer');
                         
@@ -656,7 +656,7 @@
                         updateStatus(`❌ Ошибка: ${error.message}`, 'error');
                     }
                 } else {
-                    console.log('Offer еще не найден, ждем...');
+                    console.log('Offer еще не найден, ждем... состояние:', peerConnection ? peerConnection.signalingState : 'no pc');
                 }
             });
         }
@@ -672,7 +672,7 @@
                 const roomData = snapshot.val();
                 console.log('Данные комнаты (answer):', roomData);
                 
-                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
+                if (roomData && roomData.answer && peerConnection && !peerConnection.currentRemoteDescription) {
                     try {
                         console.log('📥 Получен answer');
                         
@@ -681,13 +681,18 @@
                             sdp: roomData.answer.sdp
                         };
                         
-                        await peerConnection.setRemoteDescription(answer);
-                        
-                        updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
-                        
-                        // Отписываемся от answer
-                        roomRef.off('value');
+                        // Проверяем состояние перед установкой
+                        if (peerConnection.signalingState === 'have-local-offer') {
+                            await peerConnection.setRemoteDescription(answer);
+                            
+                            updateStatus('✅ Звонок установлен!', 'success');
+                            updateCallStatus('📞 Устанавливаем соединение...');
+                            
+                            // Отписываемся от answer
+                            roomRef.off('value');
+                        } else {
+                            console.log('⚠️ Неверное состояние для setRemoteDescription:', peerConnection.signalingState);
+                        }
                         
                     } catch (error) {
                         console.error('Ошибка обработки answer:', error);
