@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка 2</h1>
+        <h1>📱 HJWebRTC Звонилка</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -257,10 +257,48 @@
                         // Создаем аудио элемент для воспроизведения
                         const remoteAudio = new Audio();
                         remoteAudio.srcObject = remoteStream;
-                        remoteAudio.play().catch(e => console.error('Ошибка воспроизведения:', e));
                         
-                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                        updateCallStatus('📞 Звонок активен');
+                        // Устанавливаем атрибуты для автовоспроизведения
+                        remoteAudio.autoplay = true;
+                        remoteAudio.muted = false;
+                        remoteAudio.volume = 1.0;
+                        
+                        // Пробуем воспроизвести сразу
+                        const playPromise = remoteAudio.play();
+                        
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                console.log('✅ Удаленное аудио успешно воспроизводится');
+                                updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                                updateCallStatus('📞 Звонок активен');
+                            }).catch(e => {
+                                console.error('❌ Ошибка воспроизведения удаленного аудио:', e);
+                                updateStatus(`❌ Ошибка воспроизведения: ${e.message}`, 'error');
+                            });
+                        } else {
+                            console.log('⚠️ Автовоспроизведение не поддерживается, пробуем другие методы');
+                            
+                            // Пробуем установить атрибуты после создания
+                            setTimeout(() => {
+                                remoteAudio.setAttribute('autoplay', 'true');
+                                remoteAudio.setAttribute('playsinline', 'true');
+                                remoteAudio.load();
+                                
+                                const retryPlay = remoteAudio.play();
+                                if (retryPlay !== undefined) {
+                                    retryPlay.then(() => {
+                                        console.log('✅ Удаленное аудио воспроизводится (повторная попытка)');
+                                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                                        updateCallStatus('📞 Звонок активен');
+                                    }).catch(e => {
+                                        console.error('❌ Ошибка повторного воспроизведения:', e);
+                                    });
+                                } else {
+                                    console.log('❌ Повторная попытка тоже не удалась');
+                                }
+                            }, 500);
+                        }
+                        
                     } else {
                         console.log('Получен трек без потока:', event.track);
                     }
