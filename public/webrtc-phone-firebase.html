@@ -153,8 +153,6 @@
         let peerConnection = null;
         let isInitiator = false;
         let roomKey = '';
-        let proximitySensor = null;
-        let isNearEar = false;
 
         // Firebase конфигурация
         const firebaseConfig = {
@@ -200,165 +198,6 @@
             const callStatusEl = document.getElementById('callStatus');
             callStatusEl.textContent = message;
             callStatusEl.classList.remove('hidden');
-        }
-
-        // Инициализация Proximity Sensor (только после установления соединения)
-        function initProximitySensor() {
-            try {
-                // Проверяем поддержку Proximity Sensor API
-                if ('ProximitySensor' in window) {
-                    proximitySensor = new ProximitySensor();
-                    
-                    proximitySensor.addEventListener('reading', () => {
-                        const near = proximitySensor.near;
-                        
-                        if (near && !isNearEar) {
-                            // Телефон у уха - гасим экран
-                            isNearEar = true;
-                            turnScreenOff();
-                            console.log('🔇 Телефон у уха - экран погашен');
-                        } else if (!near && isNearEar) {
-                            // Телефон убрали от уха - включаем экран
-                            isNearEar = false;
-                            turnScreenOn();
-                            console.log('📱 Телефон убран от уха - экран включен');
-                        }
-                    });
-                    
-                    proximitySensor.start();
-                    console.log('✅ Proximity Sensor инициализирован');
-                } else {
-                    console.log('⚠️ Proximity Sensor не поддерживается');
-                    // Альтернативный метод через Device Orientation
-                    initAlternativeProximity();
-                }
-            } catch (error) {
-                console.error('❌ Ошибка Proximity Sensor:', error);
-                initAlternativeProximity();
-            }
-        }
-
-        // Альтернативный метод через Device Orientation
-        function initAlternativeProximity() {
-            try {
-                if ('DeviceOrientationEvent' in window) {
-                    window.addEventListener('deviceorientation', (event) => {
-                        const { beta } = event;
-                        
-                        if (beta !== null) {
-                            // Beta > 45 или < -45 - телефон в вертикальном положении (у уха)
-                            const isVertical = Math.abs(beta) > 45;
-                            
-                            if (isVertical && !isNearEar) {
-                                isNearEar = true;
-                                turnScreenOff();
-                                console.log('🔇 Телефон в вертикальном положении - экран погашен');
-                            } else if (!isVertical && isNearEar) {
-                                isNearEar = false;
-                                turnScreenOn();
-                                console.log('📱 Телефон в горизонтальном положении - экран включен');
-                            }
-                        }
-                    });
-                    
-                    console.log('✅ Device Orientation Proximity инициализирован');
-                } else {
-                    console.log('⚠️ Device Orientation не поддерживается');
-                    // Метод через touch events
-                    initTouchProximity();
-                }
-            } catch (error) {
-                console.error('❌ Ошибка Device Orientation:', error);
-                initTouchProximity();
-            }
-        }
-
-        // Метод через touch events (fallback)
-        function initTouchProximity() {
-            let touchStartTime = 0;
-            let isLongTouch = false;
-            
-            document.addEventListener('touchstart', (event) => {
-                touchStartTime = Date.now();
-                isLongTouch = false;
-                
-                // Длинное нажатие - телефон у уха
-                setTimeout(() => {
-                    if (Date.now() - touchStartTime > 1000) {
-                        isLongTouch = true;
-                        isNearEar = true;
-                        turnScreenOff();
-                        console.log('🔇 Длинное нажатие - экран погашен');
-                    }
-                }, 1000);
-            });
-            
-            document.addEventListener('touchend', () => {
-                if (isLongTouch) {
-                    isLongTouch = false;
-                    isNearEar = false;
-                    turnScreenOn();
-                    console.log('📱 Нажатие отпущено - экран включен');
-                }
-            });
-            
-            console.log('✅ Touch Proximity инициализирован');
-        }
-
-        // Погасить экран
-        function turnScreenOff() {
-            try {
-                // Wake Lock API
-                if ('wakeLock' in navigator) {
-                    navigator.wakeLock.request('screen').catch(e => console.log('Wake Lock ошибка:', e));
-                }
-                
-                // CSS гашение экрана
-                document.body.style.background = '#000';
-                document.querySelector('.container').style.display = 'none';
-                document.body.style.filter = 'brightness(0)';
-                document.body.style.webkitFilter = 'brightness(0)';
-                
-                // Black overlay
-                let overlay = document.getElementById('screenOffOverlay');
-                if (!overlay) {
-                    overlay = document.createElement('div');
-                    overlay.id = 'screenOffOverlay';
-                    overlay.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: black;
-                        z-index: 9999;
-                        display: none;
-                    `;
-                    document.body.appendChild(overlay);
-                }
-                overlay.style.display = 'block';
-                
-            } catch (error) {
-                console.error('❌ Ошибка гашения экрана:', error);
-            }
-        }
-
-        // Включить экран
-        function turnScreenOn() {
-            try {
-                document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                document.querySelector('.container').style.display = 'flex';
-                document.body.style.filter = 'brightness(1)';
-                document.body.style.webkitFilter = 'brightness(1)';
-                
-                const overlay = document.getElementById('screenOffOverlay');
-                if (overlay) {
-                    overlay.style.display = 'none';
-                }
-                
-            } catch (error) {
-                console.error('❌ Ошибка включения экрана:', error);
-            }
         }
 
         async function initLocalStream() {
@@ -426,10 +265,6 @@
                         
                         updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
                         updateCallStatus('📞 Звонок активен');
-                        
-                        // Активируем Proximity Sensor после получения аудио
-                        initProximitySensor();
-                        console.log('📱 Proximity Sensor активирован после получения аудио');
                     } else {
                         console.log('Получен трек без потока:', event.track);
                     }
@@ -445,13 +280,6 @@
                               peerConnection.connectionState === 'failed') {
                         updateStatus('❌ Соединение разорвано', 'error');
                         updateCallStatus('🔇 Соединение разорвано');
-                        
-                        // Отключаем Proximity Sensor при разрыве
-                        if (proximitySensor) {
-                            proximitySensor.stop();
-                            proximitySensor = null;
-                        }
-                        turnScreenOn(); // Включаем экран при разрыве
                     }
                 };
 
@@ -693,16 +521,6 @@
             
             remoteStream = null;
             
-            // Отключаем Proximity Sensor при завершении звонка
-            if (proximitySensor) {
-                proximitySensor.stop();
-                proximitySensor = null;
-            }
-            
-            // Включаем экран при завершении звонка
-            turnScreenOn();
-            isNearEar = false;
-            
             // Очищаем комнату
             if (roomKey) {
                 database.ref(`rooms/${roomKey}`).remove();
@@ -719,10 +537,6 @@
 
         window.onload = function() {
             updateStatus('📱 Приложение готово к работе', 'success');
-            addDebugInfo('WebRTC поддерживается: ' + !!window.RTCPeerConnection);
-            addDebugInfo('Firebase статус: ' + (database ? 'Подключен' : 'Ошибка'));
-            addDebugInfo('Proximity Sensor: ' + ('ProximitySensor' in window ? 'Поддерживается' : 'Не поддерживается'));
-            addDebugInfo('Device Orientation: ' + ('DeviceOrientationEvent' in window ? 'Поддерживается' : 'Не поддерживается'));
         };
     </script>
 </body>
