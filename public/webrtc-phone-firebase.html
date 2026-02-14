@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v5.0</h1>
+        <h1>📱 WebRTC Звонилка v6.0</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -226,8 +226,12 @@
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
                         console.log('ICE кандидат получен:', event.candidate);
-                        // В реальном приложении здесь нужно отправлять ICE кандидаты в Firebase
-                        // Но для простоты пропустим этот шаг
+                        // Отправляем ICE кандидат в Firebase
+                        if (isInitiator) {
+                            database.ref(`rooms/${roomKey}/callerCandidates`).push(event.candidate);
+                        } else {
+                            database.ref(`rooms/${roomKey}/calleeCandidates`).push(event.candidate);
+                        }
                     }
                 };
 
@@ -310,6 +314,9 @@
                 // Начинаем слушать answer
                 startAnswerListener();
                 
+                // Начинаем слушать ICE кандидаты от отвечающего
+                listenForIceCandidates('calleeCandidates');
+                
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
             }
@@ -383,11 +390,27 @@
                         // Отписываемся от offer
                         roomRef.off('value');
                         
+                        // Начинаем слушать ICE кандидаты от звонящего
+                        listenForIceCandidates('callerCandidates');
+                        
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
                 } else {
                     console.log('Offer еще не найден, ждем...');
+                }
+            });
+        }
+
+        function listenForIceCandidates(candidateType) {
+            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
+            candidatesRef.on('child_added', async (snapshot) => {
+                const candidate = snapshot.val();
+                console.log('Получен ICE кандидат:', candidate);
+                try {
+                    await peerConnection.addIceCandidate(candidate);
+                } catch (error) {
+                    console.error('Ошибка добавления ICE кандидата:', error);
                 }
             });
         }
@@ -417,6 +440,9 @@
                         
                         // Отписываемся от answer
                         roomRef.off('value');
+                        
+                        // Начинаем слушать ICE кандидаты от отвечающего
+                        listenForIceCandidates('calleeCandidates');
                         
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
