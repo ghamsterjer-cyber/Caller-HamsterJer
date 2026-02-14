@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка v8.0 (Webhook)</title>
+    <title>WebRTC Звонилка - Рабочая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -116,14 +116,6 @@
         .hidden {
             display: none;
         }
-        .server-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            color: #666;
-        }
         .pulse {
             animation: pulse 2s infinite;
         }
@@ -136,12 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v8.0</h1>
-        
-        <div class="server-info">
-            <strong>Сервер сигнализации:</strong><br>
-            Webhook.site - публичный и бесплатный
-        </div>
+        <h1>📱 WebRTC Звонилка</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -164,8 +151,29 @@
         let peerConnection = null;
         let isInitiator = false;
         let roomKey = '';
-        let pollingInterval = null;
-        let webhookUrl = null;
+
+        // Firebase конфигурация
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1TafaoL4HwEo5FKz7m4_6XOeJ3X5kGxg",
+            authDomain: "webrtc-phone-app.firebaseapp.com",
+            databaseURL: "https://webrtc-phone-app-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "webrtc-phone-app",
+            storageBucket: "webrtc-phone-app.firebasestorage.app",
+            messagingSenderId: "505124007738",
+            appId: "1:505124007738:web:763b4a1b3cf2b7c830aa03",
+            measurementId: "G-TJ2QY59CDJ"
+        };
+
+        // Инициализация Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('Firebase инициализирован');
+        } catch (error) {
+            console.error('Ошибка Firebase:', error);
+            updateStatus('❌ Ошибка Firebase: ' + error.message, 'error');
+        }
 
         // WebRTC конфигурация
         const configuration = {
@@ -188,60 +196,6 @@
             const callStatusEl = document.getElementById('callStatus');
             callStatusEl.textContent = message;
             callStatusEl.classList.remove('hidden');
-        }
-
-        // Webhook.site API функции
-        function getWebhookUrl(roomKey) {
-            // Используем уникальный URL для каждой комнаты
-            return `https://webhook.site/${roomKey}`;
-        }
-
-        async function sendDataToWebhook(url, data) {
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        roomKey: roomKey,
-                        data: data,
-                        timestamp: Date.now()
-                    })
-                });
-                return await response.json();
-            } catch (error) {
-                console.error('Ошибка отправки данных:', error);
-                throw error;
-            }
-        }
-
-        async function getDataFromWebhook(url) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    const text = await response.text();
-                    // Webhook.site возвращает данные как plain text
-                    if (text && text !== 'OK') {
-                        try {
-                            return JSON.parse(text);
-                        } catch {
-                            return null;
-                        }
-                    }
-                }
-                return null;
-            } catch (error) {
-                console.error('Ошибка получения данных:', error);
-                return null;
-            }
-        }
-
-        function stopPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
         }
 
         async function initLocalStream() {
@@ -284,7 +238,6 @@
                     
                     if (peerConnection.connectionState === 'connected') {
                         updateCallStatus('📞 Соединение установлено');
-                        stopPolling();
                     } else if (peerConnection.connectionState === 'disconnected' || 
                               peerConnection.connectionState === 'failed') {
                         updateCallStatus('🔇 Соединение разорвано');
@@ -318,16 +271,21 @@
                 createPeerConnection();
                 
                 isInitiator = true;
-                webhookUrl = getWebhookUrl(roomKey);
+                
+                // Очищаем предыдущие данные
+                await database.ref(`rooms/${roomKey}`).remove();
                 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                // Отправляем offer на webhook
-                await sendDataToWebhook(webhookUrl, {
-                    type: 'offer',
-                    offer: offer,
-                    status: 'waiting'
+                // Сохраняем offer в Firebase
+                await database.ref(`rooms/${roomKey}`).set({
+                    offer: {
+                        sdp: offer.sdp,
+                        type: offer.type
+                    },
+                    status: 'waiting',
+                    timestamp: Date.now()
                 });
                 
                 document.getElementById('createCallBtn').disabled = true;
@@ -337,8 +295,8 @@
                 updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
                 updateCallStatus('⏳ Ожидание собеседника...');
                 
-                // Начинаем опрос answer
-                startAnswerPolling();
+                // Начинаем слушать answer
+                startAnswerListener();
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -359,80 +317,91 @@
                 createPeerConnection();
                 
                 isInitiator = false;
-                webhookUrl = getWebhookUrl(roomKey);
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                // Начинаем опрос offer
-                startOfferPolling();
+                // Начинаем слушать offer
+                startOfferListener();
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
             }
         }
 
-        function startOfferPolling() {
-            updateStatus('🔍 Поиск offer...', 'info');
+        function startOfferListener() {
+            updateStatus('🔍 Ожидание offer...', 'info');
             
-            pollingInterval = setInterval(async () => {
-                try {
-                    const data = await getDataFromWebhook(webhookUrl);
-                    
-                    if (data && data.data && data.data.type === 'offer' && !peerConnection.currentRemoteDescription) {
-                        const offer = data.data.offer;
+            const roomRef = database.ref(`rooms/${roomKey}/offer`);
+            
+            roomRef.on('value', async (snapshot) => {
+                const offerData = snapshot.val();
+                if (offerData && !peerConnection.currentRemoteDescription) {
+                    try {
+                        console.log('Получен offer:', offerData);
+                        
+                        const offer = {
+                            type: offerData.type,
+                            sdp: offerData.sdp
+                        };
                         
                         await peerConnection.setRemoteDescription(offer);
                         
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
-                        // Отправляем answer на webhook
-                        await sendDataToWebhook(webhookUrl, {
-                            type: 'answer',
-                            offer: offer,
-                            answer: answer,
-                            status: 'connected'
+                        // Сохраняем answer в Firebase
+                        await database.ref(`rooms/${roomKey}/answer`).set({
+                            sdp: answer.sdp,
+                            type: answer.type
                         });
                         
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Устанавливаем соединение...');
                         
-                        stopPolling();
+                        // Отписываемся от offer
+                        roomRef.off('value');
+                        
+                    } catch (error) {
+                        updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
                     }
-                } catch (error) {
-                    console.error('Ошибка опроса offer:', error);
                 }
-            }, 3000); // Опрос каждые 3 секунды
+            });
         }
 
-        function startAnswerPolling() {
+        function startAnswerListener() {
             updateStatus('🔍 Ожидание answer...', 'info');
             
-            pollingInterval = setInterval(async () => {
-                try {
-                    const data = await getDataFromWebhook(webhookUrl);
-                    
-                    if (data && data.data && data.data.type === 'answer' && !peerConnection.currentRemoteDescription) {
-                        const answer = data.data.answer;
+            const roomRef = database.ref(`rooms/${roomKey}/answer`);
+            
+            roomRef.on('value', async (snapshot) => {
+                const answerData = snapshot.val();
+                if (answerData && !peerConnection.currentRemoteDescription) {
+                    try {
+                        console.log('Получен answer:', answerData);
+                        
+                        const answer = {
+                            type: answerData.type,
+                            sdp: answerData.sdp
+                        };
                         
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
                         updateCallStatus('📞 Звонок активен');
                         
-                        stopPolling();
+                        // Отписываемся от answer
+                        roomRef.off('value');
+                        
+                    } catch (error) {
+                        updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
                     }
-                } catch (error) {
-                    console.error('Ошибка опроса answer:', error);
                 }
-            }, 3000); // Опрос каждые 3 секунды
+            });
         }
 
         function endCall() {
-            stopPolling();
-            
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
@@ -444,7 +413,11 @@
             }
             
             remoteStream = null;
-            webhookUrl = null;
+            
+            // Очищаем комнату
+            if (roomKey) {
+                database.ref(`rooms/${roomKey}`).remove();
+            }
             
             // Сбрасываем интерфейс
             document.getElementById('createCallBtn').disabled = false;
@@ -459,5 +432,7 @@
             updateStatus('📱 Приложение готово к работе', 'success');
         };
     </script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </body>
 </html>
