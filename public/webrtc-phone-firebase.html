@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка C2</h1>
+        <h1>📱 WebRTC Звонилка C3</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -228,10 +228,14 @@
                         console.log('ICE кандидат получен:', event.candidate);
                         // Отправляем ICE кандидат в Firebase
                         if (isInitiator && roomKey) {
+                            console.log('Отправляем callerCandidate в Firebase');
                             database.ref(`rooms/${roomKey}/callerCandidates`).push(event.candidate);
                         } else if (!isInitiator && roomKey) {
+                            console.log('Отправляем calleeCandidate в Firebase');
                             database.ref(`rooms/${roomKey}/calleeCandidates`).push(event.candidate);
                         }
+                    } else {
+                        console.log('ICE кандидаты завершены');
                     }
                 };
 
@@ -273,14 +277,32 @@
             console.log(`Начинаем слушать ICE кандидаты типа: ${candidateType}`);
             
             const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
+            
+            // Сначала проверяем есть ли уже кандидаты
+            candidatesRef.once('value', (snapshot) => {
+                const existingCandidates = snapshot.val();
+                if (existingCandidates) {
+                    console.log(`Найдены существующие кандидаты:`, existingCandidates);
+                    Object.values(existingCandidates).forEach(async (candidate) => {
+                        try {
+                            await peerConnection.addIceCandidate(candidate);
+                            console.log('Существующий ICE кандидат добавлен');
+                        } catch (error) {
+                            console.error('Ошибка добавления существующего ICE кандидата:', error);
+                        }
+                    });
+                }
+            });
+            
+            // Слушаем новые кандидаты
             candidatesRef.on('child_added', async (snapshot) => {
                 const candidate = snapshot.val();
-                console.log('Получен ICE кандидат:', candidate);
+                console.log('Получен новый ICE кандидат:', candidate);
                 try {
                     await peerConnection.addIceCandidate(candidate);
-                    console.log('ICE кандидат успешно добавлен');
+                    console.log('Новый ICE кандидат успешно добавлен');
                 } catch (error) {
-                    console.error('Ошибка добавления ICE кандидата:', error);
+                    console.error('Ошибка добавления нового ICE кандидата:', error);
                 }
             });
         }
