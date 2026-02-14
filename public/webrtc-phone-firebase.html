@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Чистая версия</title>
+    <title>WebRTC Звонилка - ICE Fixed</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка C3</h1>
+        <h1>📱 WebRTC Звонилка ICE</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -330,11 +330,10 @@
                 // Очищаем предыдущие данные
                 await database.ref(`rooms/${roomKey}`).remove();
                 
-                // Начинаем слушать ICE кандидаты от отвечающего ДО создания offer
-                listenForIceCandidates('calleeCandidates');
-                
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
+                
+                console.log('Offer создан и установлен как локальный');
                 
                 // Сохраняем offer в Firebase
                 await database.ref(`rooms/${roomKey}`).set({
@@ -346,6 +345,8 @@
                     timestamp: Date.now()
                 });
                 
+                console.log('Offer сохранен в Firebase');
+                
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
@@ -355,6 +356,12 @@
                 
                 // Начинаем слушать answer
                 startAnswerListener();
+                
+                // Начинаем слушать ICE кандидаты от отвечающего ПОСЛЕ установки offer
+                setTimeout(() => {
+                    console.log('Начинаем слушать ICE кандидаты от отвечающего');
+                    listenForIceCandidates('calleeCandidates');
+                }, 1000);
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
@@ -385,11 +392,14 @@
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                // Начинаем слушать ICE кандидатов от звонящего ДО поиска offer
-                listenForIceCandidates('callerCandidates');
-                
                 // Начинаем слушать offer
                 startOfferListener();
+                
+                // Начинаем слушать ICE кандидаты от звонящего ПОСЛЕ инициализации
+                setTimeout(() => {
+                    console.log('Начинаем слушать ICE кандидаты от звонящего');
+                    listenForIceCandidates('callerCandidates');
+                }, 1000);
                 
             } catch (error) {
                 updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
@@ -421,11 +431,15 @@
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
+                        console.log('Answer создан и установлен как локальный');
+                        
                         // Сохраняем answer в Firebase
                         await database.ref(`rooms/${roomKey}/answer`).set({
                             sdp: answer.sdp,
                             type: answer.type
                         });
+                        
+                        console.log('Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Ожидаем ICE кандидатов...');
