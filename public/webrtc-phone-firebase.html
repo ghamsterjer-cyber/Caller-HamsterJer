@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Рабочая версия</title>
+    <title>WebRTC Звонилка v2.0</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -145,6 +145,8 @@
         <div id="callStatus" class="call-status hidden">🔇 Нет звонка</div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script>
         let localStream = null;
         let remoteStream = null;
@@ -156,7 +158,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyD1TafaoL4HwEo5FKz7m4_6XOeJ3X5kGxg",
             authDomain: "webrtc-phone-app.firebaseapp.com",
-            databaseURL: "https://webrtc-phone-app-default-rtdb.europe-west1.firebasedatabase.app",
+            databaseURL: "https://webrtc-phone-app-default-rtdb.firebaseio.com",
             projectId: "webrtc-phone-app",
             storageBucket: "webrtc-phone-app.firebasestorage.app",
             messagingSenderId: "505124007738",
@@ -259,6 +261,12 @@
 
         async function createCall() {
             try {
+                // Проверяем доступность Firebase
+                if (!database || !database.ref) {
+                    updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
+                    return;
+                }
+
                 roomKey = document.getElementById('roomKey').value;
                 if (!roomKey) {
                     updateStatus('❌ Введите ключ комнаты', 'error');
@@ -305,6 +313,12 @@
 
         async function joinCall() {
             try {
+                // Проверяем доступность Firebase
+                if (!database || !database.ref) {
+                    updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
+                    return;
+                }
+
                 roomKey = document.getElementById('roomKey').value;
                 if (!roomKey) {
                     updateStatus('❌ Введите ключ комнаты', 'error');
@@ -432,7 +446,5 @@
             updateStatus('📱 Приложение готово к работе', 'success');
         };
     </script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </body>
 </html>
