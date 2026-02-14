@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Чистая версия</title>
+    <title>WebRTC Звонилка - Простая рабочая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка</h1>
+        <h1>📱 HJWebRTC Звонилка3</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -173,7 +173,7 @@
             updateStatus('❌ Ошибка Firebase: ' + error.message, 'error');
         }
 
-        // WebRTC конфигурация с несколькими STUN серверами
+        // WebRTC конфигурация
         const configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -207,7 +207,6 @@
                     video: false 
                 });
                 localStream = stream;
-                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -220,10 +219,9 @@
             try {
                 peerConnection = new RTCPeerConnection(configuration);
 
-                // ICE кандидаты - отправляем в Firebase
+                // ICE кандидаты
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат:', event.candidate);
                         const candidateData = {
                             candidate: event.candidate.candidate,
                             sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -231,17 +229,14 @@
                         };
                         
                         if (isInitiator && roomKey) {
-                            console.log('Отправляем callerCandidate');
                             database.ref(`rooms/${roomKey}/callerCandidates`).push(candidateData);
                         } else if (!isInitiator && roomKey) {
-                            console.log('Отправляем calleeCandidate');
                             database.ref(`rooms/${roomKey}/calleeCandidates`).push(candidateData);
                         }
-                    } else {
-                        console.log('ICE кандидаты завершены');
                     }
                 };
 
+                // Получение удаленного потока
                 peerConnection.ontrack = (event) => {
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
@@ -255,9 +250,8 @@
                     }
                 };
 
+                // Состояние соединения
                 peerConnection.onconnectionstatechange = () => {
-                    console.log('Состояние соединения:', peerConnection.connectionState);
-                    
                     if (peerConnection.connectionState === 'connected') {
                         updateStatus('✅ Соединение установлено!', 'success');
                         updateCallStatus('📞 Звонок активен');
@@ -268,10 +262,9 @@
                     }
                 };
 
+                // Добавляем локальные треки
                 if (localStream) {
-                    console.log('Добавляем локальные треки:', localStream.getTracks());
                     localStream.getTracks().forEach(track => {
-                        console.log('Добавляем трек:', track.kind, track.label);
                         peerConnection.addTrack(track, localStream);
                     });
                 }
@@ -286,13 +279,10 @@
         function listenForIceCandidates(candidateType) {
             if (!roomKey || !peerConnection) return;
             
-            console.log(`Начинаем слушать ${candidateType}`);
-            
             const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
             
             candidatesRef.on('child_added', async (snapshot) => {
                 const candidateData = snapshot.val();
-                console.log(`Получен ${candidateType}:`, candidateData);
                 
                 try {
                     const candidate = new RTCIceCandidate({
@@ -302,20 +292,14 @@
                     });
                     
                     await peerConnection.addIceCandidate(candidate);
-                    console.log(`${candidateType} добавлен успешно`);
                 } catch (error) {
-                    console.error(`Ошибка добавления ${candidateType}:`, error);
+                    console.error('Ошибка добавления ICE кандидата:', error);
                 }
             });
         }
 
         async function createCall() {
             try {
-                if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован', 'error');
-                    return;
-                }
-
                 roomKey = document.getElementById('roomKey').value;
                 if (!roomKey) {
                     updateStatus('❌ Введите ключ комнаты', 'error');
@@ -329,28 +313,22 @@
                 
                 isInitiator = true;
                 
-                // Очищаем предыдущие данные
+                // Очищаем комнату
                 await database.ref(`rooms/${roomKey}`).remove();
                 
-                // Начинаем слушать ICE кандидаты ДО создания offer
+                // Начинаем слушать ICE кандидаты
                 listenForIceCandidates('calleeCandidates');
                 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                console.log('✅ Offer создан');
-                
-                // Сохраняем offer в Firebase
+                // Сохраняем offer
                 await database.ref(`rooms/${roomKey}`).set({
                     offer: {
                         sdp: offer.sdp,
                         type: offer.type
-                    },
-                    status: 'waiting',
-                    timestamp: Date.now()
+                    }
                 });
-                
-                console.log('✅ Offer сохранен в Firebase');
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
@@ -359,7 +337,7 @@
                 updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
                 updateCallStatus('⏳ Ожидание собеседника...');
                 
-                // Начинаем слушать answer
+                // Слушаем answer
                 startAnswerListener();
                 
             } catch (error) {
@@ -370,11 +348,6 @@
 
         async function joinCall() {
             try {
-                if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован', 'error');
-                    return;
-                }
-
                 roomKey = document.getElementById('roomKey').value;
                 if (!roomKey) {
                     updateStatus('❌ Введите ключ комнаты', 'error');
@@ -388,14 +361,14 @@
                 
                 isInitiator = false;
                 
-                // Начинаем слушать ICE кандидаты ДО поиска offer
+                // Начинаем слушать ICE кандидаты
                 listenForIceCandidates('callerCandidates');
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
                 
-                // Начинаем слушать offer
+                // Слушаем offer
                 startOfferListener();
                 
             } catch (error) {
@@ -405,20 +378,13 @@
         }
 
         function startOfferListener() {
-            if (!roomKey) return;
-            
-            updateStatus('🔍 Ожидание offer...', 'info');
-            
             const roomRef = database.ref(`rooms/${roomKey}`);
             
             roomRef.on('value', async (snapshot) => {
                 const roomData = snapshot.val();
-                console.log('Данные комнаты:', roomData);
                 
-                if (roomData && roomData.offer && peerConnection.remoteDescription === null) {
+                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('📥 Получен offer');
-                        
                         const offer = {
                             type: roomData.offer.type,
                             sdp: roomData.offer.sdp
@@ -429,47 +395,33 @@
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
-                        console.log('✅ Answer создан');
-                        
-                        // Сохраняем answer в Firebase
+                        // Сохраняем answer
                         await database.ref(`rooms/${roomKey}/answer`).set({
                             sdp: answer.sdp,
                             type: answer.type
                         });
                         
-                        console.log('✅ Answer сохранен в Firebase');
-                        
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Звонок активен');
                         
-                        // Отписываемся от offer
                         roomRef.off('value');
                         
                     } catch (error) {
                         console.error('Ошибка обработки offer:', error);
                         updateStatus(`❌ Ошибка: ${error.message}`, 'error');
                     }
-                } else {
-                    console.log('Offer еще не найден, ждем...');
                 }
             });
         }
 
         function startAnswerListener() {
-            if (!roomKey) return;
-            
-            updateStatus('🔍 Ожидание answer...', 'info');
-            
             const roomRef = database.ref(`rooms/${roomKey}`);
             
             roomRef.on('value', async (snapshot) => {
                 const roomData = snapshot.val();
-                console.log('Данные комнаты (answer):', roomData);
                 
-                if (roomData && roomData.answer && peerConnection.remoteDescription === null) {
+                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('📥 Получен answer');
-                        
                         const answer = {
                             type: roomData.answer.type,
                             sdp: roomData.answer.sdp
@@ -480,15 +432,12 @@
                         updateStatus('✅ Звонок установлен!', 'success');
                         updateCallStatus('📞 Звонок активен');
                         
-                        // Отписываемся от answer
                         roomRef.off('value');
                         
                     } catch (error) {
                         console.error('Ошибка обработки answer:', error);
                         updateStatus(`❌ Ошибка: ${error.message}`, 'error');
                     }
-                } else {
-                    console.log('Answer еще не найден, ждем...');
                 }
             });
         }
