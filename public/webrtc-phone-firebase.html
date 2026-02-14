@@ -4,10 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#667eea">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>WebRTC Звонилка - Custom Tabs</title>
+    <title>WebRTC Звонилка - Permission Hack</title>
     <style>
         * {
             margin: 0;
@@ -36,29 +33,6 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             margin: 20px;
-            position: relative;
-        }
-        
-        .close-btn {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 18px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-        
-        .close-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
         }
         
         h1 {
@@ -195,16 +169,66 @@
             100% { opacity: 1; }
         }
         
-        .environment-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 5px 10px;
+        .permission-box {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2d3436;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 2px solid #fdcb6e;
+        }
+        
+        .hack-status {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .permission-list {
+            background: white;
+            border: 2px solid #e1e1e1;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .permission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+        
+        .permission-status {
+            padding: 4px 8px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            color: #667eea;
+        }
+        
+        .granted {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #155724;
+        }
+        
+        .denied {
+            background: linear-gradient(135deg, #fccb90 0%, #ff9a9e 100%);
+            color: #721c24;
+        }
+        
+        .unknown {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #0c5460;
         }
         
         /* Оптимизация для мобильных */
@@ -224,37 +248,49 @@
                 font-size: 14px;
             }
         }
-        
-        /* Custom Tabs оптимизация */
-        .custom-tabs-mode {
-            padding-top: 0;
-        }
-        
-        .custom-tabs-mode .container {
-            border-radius: 0;
-            margin: 0;
-            min-height: 100vh;
-            box-shadow: none;
-        }
     </style>
 </head>
 <body>
-    <div class="environment-info" id="envInfo">🌐 Браузер</div>
-    
     <div class="container">
-        <button class="close-btn" onclick="closeCustomTab()">✖</button>
-        
-        <h1>📱 WebRTC Звонилка</h1>
+        <h1>📱 WebRTC Звонилка Хак</h1>
 
-        <div class="input-group">
-            <label for="roomKey">🔑 Ключ комнаты:</label>
-            <input type="text" id="roomKey" placeholder="Введите ключ (например: 1111)" value="1111">
+        <div class="permission-box">
+            <strong>🔐 WebView Permission Hack</strong><br>
+            Попытка обойти ограничения WebView
+        </div>
+
+        <div class="hack-status" id="hackStatus">
+            🔄 Анализ разрешений...
+        </div>
+
+        <div class="permission-list">
+            <div class="permission-item">
+                <span>🎤 getUserMedia</span>
+                <span class="permission-status" id="userMediaStatus">❓</span>
+            </div>
+            <div class="permission-item">
+                <span>🌐 HTTPS</span>
+                <span class="permission-status" id="httpsStatus">❓</span>
+            </div>
+            <div class="permission-item">
+                <span>📱 WebView</span>
+                <span class="permission-status" id="webviewStatus">❓</span>
+            </div>
         </div>
 
         <div class="input-group">
-            <button id="createCallBtn" class="btn-primary" onclick="createCall()">📞 Создать звонок</button>
-            <button id="joinCallBtn" class="btn-primary" onclick="joinCall()">📞 Присоединиться к звонку</button>
-            <button id="endCallBtn" class="btn-danger hidden" onclick="endCall()">🔚 Завершить звонок</button>
+            <button class="btn-primary" onclick="requestPermissions()">
+                🔐 Запросить все разрешения
+            </button>
+            <button class="btn-primary" onclick="forceGetUserMedia()">
+                🎤 Принудительный getUserMedia
+            </button>
+            <button class="btn-primary" onclick="tryWebRTC()">
+                📞 Попробовать WebRTC
+            </button>
+            <button class="btn-primary" onclick="startCall()">
+                📞 Начать звонок
+            </button>
         </div>
 
         <div id="status" class="status info">📱 Готов к работе</div>
@@ -316,418 +352,260 @@
             callStatusEl.classList.remove('hidden');
         }
 
-        // Определение окружения
-        function detectEnvironment() {
-            const userAgent = navigator.userAgent;
+        function updateHackStatus(message) {
+            const hackEl = document.getElementById('hackStatus');
+            hackEl.textContent = message;
+        }
+
+        function updatePermissionStatus(id, status, text) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `permission-status ${status}`;
+        }
+
+        // Проверка разрешений
+        function checkPermissions() {
+            updateHackStatus('🔍 Проверка разрешений...');
             
-            if (userAgent.includes('Kodular')) {
-                return 'kodular-webview';
-            } else if (userAgent.includes('Chrome') && 
-                      !userAgent.includes('Mobile Safari') &&
-                      window.chrome && window.chrome.runtime) {
-                return 'custom-tabs';
-            } else if (userAgent.includes('Mobile Safari')) {
-                return 'mobile-safari';
+            // Проверяем getUserMedia
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                updatePermissionStatus('userMediaStatus', 'granted', '✅ Доступен');
             } else {
-                return 'browser';
-            }
-        }
-
-        // Инициализация окружения
-        function initEnvironment() {
-            const env = detectEnvironment();
-            const envInfo = document.getElementById('envInfo');
-            
-            switch(env) {
-                case 'custom-tabs':
-                    envInfo.textContent = '🌐 Custom Tabs';
-                    document.body.classList.add('custom-tabs-mode');
-                    updateStatus('🌐 Custom Tabs - полный доступ', 'success');
-                    break;
-                case 'kodular-webview':
-                    envInfo.textContent = '📱 Kodular WebView';
-                    updateStatus('⚠️ Kodular WebView - ограниченный режим', 'error');
-                    break;
-                case 'mobile-safari':
-                    envInfo.textContent = '🍎 Mobile Safari';
-                    updateStatus('🍎 Mobile Safari', 'info');
-                    break;
-                default:
-                    envInfo.textContent = '🌐 Браузер';
-                    updateStatus('🌐 Обычный браузер', 'info');
+                updatePermissionStatus('userMediaStatus', 'denied', '❌ Недоступен');
             }
             
-            console.log('Environment:', env);
-            return env;
-        }
-
-        // Закрытие Custom Tabs
-        function closeCustomTab() {
-            if (detectEnvironment() === 'custom-tabs') {
-                window.close();
+            // Проверяем HTTPS
+            if (location.protocol === 'https:') {
+                updatePermissionStatus('httpsStatus', 'granted', '✅ Безопасный');
             } else {
-                updateStatus('❌ Закройте вкладку вручную', 'info');
+                updatePermissionStatus('httpsStatus', 'denied', '❌ Небезопасный');
+            }
+            
+            // Проверяем WebView
+            const isWebView = /(iPhone|iPod|iPad).*AppleWebKit/i.test(navigator.userAgent) ||
+                              /Android.*wv/.test(navigator.userAgent) ||
+                              /Kodular/.test(navigator.userAgent);
+            
+            if (isWebView) {
+                updatePermissionStatus('webviewStatus', 'denied', '❌ WebView');
+            } else {
+                updatePermissionStatus('webviewStatus', 'granted', '✅ Браузер');
             }
         }
 
-        async function initLocalStream() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+        // Множественные попытки запроса разрешений
+        function requestPermissions() {
+            updateHackStatus('🔄 Множественный запрос разрешений...');
+            
+            let attempts = 0;
+            const maxAttempts = 5;
+            
+            function attemptGetUserMedia() {
+                attempts++;
+                updateHackStatus(`🔄 Попытка ${attempts} из ${maxAttempts}`);
+                
+                navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true
                     },
-                    video: false 
+                    video: false
+                }).then(stream => {
+                    updateHackStatus('✅ getUserMedia успешно!');
+                    updateStatus('🎤 Микрофон получен!', 'success');
+                    localStream = stream;
+                    
+                    // Создаем аудио элемент
+                    const localAudio = new Audio();
+                    localAudio.srcObject = localStream;
+                    localAudio.volume = 0;
+                    localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
+                    
+                }).catch(error => {
+                    console.error(`Попытка ${attempts} ошибка:`, error);
+                    
+                    if (attempts < maxAttempts) {
+                        // Пробуем еще раз с другими параметрами
+                        setTimeout(() => {
+                            if (attempts === 2) {
+                                // Без echoCancellation
+                                navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+                                    .then(attemptGetUserMedia)
+                                    .catch(() => setTimeout(attemptGetUserMedia, 1000));
+                            } else if (attempts === 3) {
+                                // С constraints
+                                navigator.mediaDevices.getUserMedia({ 
+                                    audio: { 
+                                        sampleRate: 44100,
+                                        channelCount: 1 
+                                    }, 
+                                    video: false 
+                                })
+                                    .then(attemptGetUserMedia)
+                                    .catch(() => setTimeout(attemptGetUserMedia, 1000));
+                            } else if (attempts === 4) {
+                                // Минимальные constraints
+                                navigator.mediaDevices.getUserMedia({ audio: true })
+                                    .then(attemptGetUserMedia)
+                                    .catch(() => setTimeout(attemptGetUserMedia, 2000));
+                            }
+                        }, 1000);
+                    } else {
+                        updateHackStatus('❌ Все попытки неудачны');
+                        updateStatus('❌ Не удалось получить доступ к микрофону', 'error');
+                    }
                 });
+            }
+            
+            attemptGetUserMedia();
+        }
+
+        // Принудительный getUserMedia
+        function forceGetUserMedia() {
+            updateHackStatus('🔄 Принудительный запрос...');
+            
+            // Пробуем вызвать системный диалог разрешений
+            navigator.mediaDevices.getUserMedia({
+                audio: {
+                    mandatory: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                },
+                video: false
+            }).then(stream => {
+                updateHackStatus('✅ Принудительный getUserMedia успешен!');
+                updateStatus('🎤 Микрофон принудительно получен!', 'success');
                 localStream = stream;
                 
-                // Создаем аудио элемент для локального прослушивания
                 const localAudio = new Audio();
                 localAudio.srcObject = localStream;
-                localAudio.volume = 0; // Тихий звук для себя
+                localAudio.volume = 0;
                 localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
                 
-                updateStatus('🎤 Микрофон подключен', 'success');
-                return stream;
+            }).catch(error => {
+                updateHackStatus('❌ Принудительный запрос отклонен: ' + error.message);
+                updateStatus('❌ Принудительный запрос отклонен', 'error');
+                
+                // Пробуем альтернативный метод
+                setTimeout(() => {
+                    updateHackStatus('🔄 Пробуем альтернативный метод...');
+                    tryAlternativeMethod();
+                }, 2000);
+            });
+        }
+
+        // Альтернативный метод
+        function tryAlternativeMethod() {
+            updateHackStatus('🔄 Пробуем AudioContext...');
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                
+                updateHackStatus('✅ AudioContext работает!');
+                updateStatus('🎵 Аудио тест работает', 'success');
+                
+                // Пробуем getUserMedia еще раз после AudioContext
+                setTimeout(() => {
+                    updateHackStatus('🔄 Повторный getUserMedia после AudioContext...');
+                    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+                        .then(stream => {
+                            updateHackStatus('✅ getUserMedia после AudioContext успешен!');
+                            updateStatus('🎤 Микрофон получен после AudioContext!', 'success');
+                            localStream = stream;
+                            
+                            const localAudio = new Audio();
+                            localAudio.srcObject = localStream;
+                            localAudio.volume = 0;
+                            localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
+                        })
+                        .catch(error => {
+                            updateHackStatus('❌ Даже после AudioContext не работает: ' + error.message);
+                        });
+                }, 1000);
+                
             } catch (error) {
-                updateStatus(`❌ Ошибка доступа к микрофону: ${error.message}`, 'error');
-                throw error;
+                updateHackStatus('❌ AudioContext не работает: ' + error.message);
             }
         }
 
-        function createPeerConnection() {
+        // Попытка запустить WebRTC
+        function tryWebRTC() {
+            updateHackStatus('🔄 Попытка запустить WebRTC...');
+            
+            if (!localStream) {
+                updateHackStatus('❌ Нет локального потока');
+                updateStatus('❌ Сначала получите микрофон', 'error');
+                return;
+            }
+            
             try {
                 peerConnection = new RTCPeerConnection(configuration);
-
-                // ICE кандидаты
+                
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат:', event.candidate);
-                        const candidateData = {
-                            candidate: event.candidate.candidate,
-                            sdpMLineIndex: event.candidate.sdpMLineIndex,
-                            sdpMid: event.candidate.sdpMid
-                        };
-                        
-                        if (isInitiator && roomKey) {
-                            console.log('Отправляем callerCandidate');
-                            database.ref(`rooms/${roomKey}/callerCandidates`).push(candidateData);
-                        } else if (!isInitiator && roomKey) {
-                            console.log('Отправляем calleeCandidate');
-                            database.ref(`rooms/${roomKey}/calleeCandidates`).push(candidateData);
-                        }
-                    } else {
-                        console.log('ICE кандидаты завершены');
+                        console.log('ICE кандидат получен:', event.candidate);
                     }
                 };
-
+                
                 peerConnection.ontrack = (event) => {
-                    console.log('✅ Получен удаленный поток!', event.streams);
-                    
-                    if (event.streams && event.streams[0]) {
-                        remoteStream = event.streams[0];
-                        
-                        // Создаем аудио элемент для воспроизведения
-                        const remoteAudio = new Audio();
-                        remoteAudio.srcObject = remoteStream;
-                        remoteAudio.play().catch(e => console.error('Ошибка воспроизведения:', e));
-                        
-                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                    } else {
-                        console.log('Получен трек без потока:', event.track);
-                    }
+                    console.log('Трек получен:', event.track);
+                    updateHackStatus('✅ WebRTC работает!');
+                    updateStatus('📞 WebRTC активен!', 'success');
                 };
-
-                peerConnection.onconnectionstatechange = () => {
-                    console.log('Состояние соединения:', peerConnection.connectionState);
-                    
-                    if (peerConnection.connectionState === 'connected') {
-                        updateStatus('✅ Соединение установлено!', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                    } else if (peerConnection.connectionState === 'disconnected' || 
-                              peerConnection.connectionState === 'failed') {
-                        updateStatus('❌ Соединение разорвано', 'error');
-                        updateCallStatus('🔇 Соединение разорвано');
-                    }
-                };
-
+                
                 if (localStream) {
-                    console.log('Добавляем локальные треки:', localStream.getTracks());
                     localStream.getTracks().forEach(track => {
-                        console.log('Добавляем трек:', track.kind, track.label);
                         peerConnection.addTrack(track, localStream);
                     });
                 }
-
-                return peerConnection;
-            } catch (error) {
-                updateStatus(`❌ Ошибка создания PeerConnection: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-
-        function listenForIceCandidates(candidateType) {
-            if (!roomKey || !peerConnection) return;
-            
-            console.log(`Начинаем слушать ${candidateType}`);
-            
-            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
-            
-            candidatesRef.on('child_added', async (snapshot) => {
-                const candidateData = snapshot.val();
-                console.log(`Получен ${candidateType}:`, candidateData);
                 
-                try {
-                    const candidate = new RTCIceCandidate({
-                        candidate: candidateData.candidate,
-                        sdpMLineIndex: candidateData.sdpMLineIndex,
-                        sdpMid: candidateData.sdpMid
-                    });
-                    
-                    await peerConnection.addIceCandidate(candidate);
-                    console.log(`${candidateType} добавлен успешно`);
-                } catch (error) {
-                    console.error(`Ошибка добавления ${candidateType}:`, error);
-                }
-            });
-        }
-
-        async function createCall() {
-            try {
-                if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован', 'error');
-                    return;
-                }
-
-                roomKey = document.getElementById('roomKey').value;
-                if (!roomKey) {
-                    updateStatus('❌ Введите ключ комнаты', 'error');
-                    return;
-                }
-
-                updateStatus('🔄 Создание звонка...', 'info');
-                
-                await initLocalStream();
-                createPeerConnection();
-                
-                isInitiator = true;
-                
-                // Очищаем предыдущие данные
-                await database.ref(`rooms/${roomKey}`).remove();
-                
-                // Начинаем слушать ICE кандидаты ДО создания offer
-                listenForIceCandidates('calleeCandidates');
-                
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                
-                console.log('✅ Offer создан');
-                
-                // Сохраняем offer в Firebase
-                await database.ref(`rooms/${roomKey}`).set({
-                    offer: {
-                        sdp: offer.sdp,
-                        type: offer.type
-                    },
-                    status: 'waiting',
-                    timestamp: Date.now()
-                });
-                
-                console.log('✅ Offer сохранен в Firebase');
-                
-                document.getElementById('createCallBtn').disabled = true;
-                document.getElementById('joinCallBtn').disabled = true;
-                document.getElementById('endCallBtn').classList.remove('hidden');
-                
-                updateStatus('✅ Offer отправлен. Ожидание ответа...', 'success');
-                updateCallStatus('⏳ Ожидание собеседника...');
-                
-                // Начинаем слушать answer
-                startAnswerListener();
+                updateHackStatus('✅ WebRTC инициализирован!');
                 
             } catch (error) {
-                console.error('Ошибка создания звонка:', error);
-                updateStatus(`❌ Ошибка: ${error.message}`, 'error');
+                updateHackStatus('❌ Ошибка WebRTC: ' + error.message);
+                updateStatus('❌ WebRTC не работает', 'error');
             }
         }
 
-        async function joinCall() {
-            try {
-                if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован', 'error');
-                    return;
-                }
-
-                roomKey = document.getElementById('roomKey').value;
-                if (!roomKey) {
-                    updateStatus('❌ Введите ключ комнаты', 'error');
-                    return;
-                }
-
-                updateStatus('🔄 Поиск звонка...', 'info');
-                
-                await initLocalStream();
-                createPeerConnection();
-                
-                isInitiator = false;
-                
-                // Начинаем слушать ICE кандидаты ДО поиска offer
-                listenForIceCandidates('callerCandidates');
-                
-                document.getElementById('createCallBtn').disabled = true;
-                document.getElementById('joinCallBtn').disabled = true;
-                document.getElementById('endCallBtn').classList.remove('hidden');
-                
-                // Начинаем слушать offer
-                startOfferListener();
-                
-            } catch (error) {
-                console.error('Ошибка присоединения:', error);
-                updateStatus(`❌ Ошибка: ${error.message}`, 'error');
-            }
-        }
-
-        function startOfferListener() {
-            if (!roomKey) return;
-            
-            updateStatus('🔍 Ожидание offer...', 'info');
-            
-            const roomRef = database.ref(`rooms/${roomKey}`);
-            
-            roomRef.on('value', async (snapshot) => {
-                const roomData = snapshot.val();
-                console.log('Данные комнаты:', roomData);
-                
-                if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
-                    try {
-                        console.log('📥 Получен offer');
-                        
-                        const offer = {
-                            type: roomData.offer.type,
-                            sdp: roomData.offer.sdp
-                        };
-                        
-                        await peerConnection.setRemoteDescription(offer);
-                        
-                        const answer = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answer);
-                        
-                        console.log('✅ Answer создан');
-                        
-                        // Сохраняем answer в Firebase
-                        await database.ref(`rooms/${roomKey}/answer`).set({
-                            sdp: answer.sdp,
-                            type: answer.type
-                        });
-                        
-                        console.log('✅ Answer сохранен в Firebase');
-                        
-                        updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
-                        
-                        // Отписываемся от offer
-                        roomRef.off('value');
-                        
-                    } catch (error) {
-                        console.error('Ошибка обработки offer:', error);
-                        updateStatus(`❌ Ошибка: ${error.message}`, 'error');
-                    }
-                } else {
-                    console.log('Offer еще не найден, ждем...');
-                }
-            });
-        }
-
-        function startAnswerListener() {
-            if (!roomKey) return;
-            
-            updateStatus('🔍 Ожидание answer...', 'info');
-            
-            const roomRef = database.ref(`rooms/${roomKey}`);
-            
-            roomRef.on('value', async (snapshot) => {
-                const roomData = snapshot.val();
-                console.log('Данные комнаты (answer):', roomData);
-                
-                if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
-                    try {
-                        console.log('📥 Получен answer');
-                        
-                        const answer = {
-                            type: roomData.answer.type,
-                            sdp: roomData.answer.sdp
-                        };
-                        
-                        await peerConnection.setRemoteDescription(answer);
-                        
-                        updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
-                        
-                        // Отписываемся от answer
-                        roomRef.off('value');
-                        
-                    } catch (error) {
-                        console.error('Ошибка обработки answer:', error);
-                        updateStatus(`❌ Ошибка: ${error.message}`, 'error');
-                    }
-                } else {
-                    console.log('Answer еще не найден, ждем...');
-                }
-            });
-        }
-
-        function endCall() {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
+        // Начать звонок
+        function startCall() {
+            if (!localStream) {
+                updateStatus('❌ Сначала получите микрофон', 'error');
+                return;
             }
             
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
+            updateStatus('🔄 Инициализация звонка...', 'info');
+            updateCallStatus('📞 Подготовка звонка...');
             
-            remoteStream = null;
-            
-            // Очищаем комнату
-            if (roomKey) {
-                database.ref(`rooms/${roomKey}`).remove();
-            }
-            
-            // Сбрасываем интерфейс
-            document.getElementById('createCallBtn').disabled = false;
-            document.getElementById('joinCallBtn').disabled = false;
-            document.getElementById('endCallBtn').classList.add('hidden');
-            
-            updateStatus('📞 Звонок завершен', 'info');
-            updateCallStatus('🔇 Нет звонка');
+            // Загружаем основной WebRTC код
+            const script = document.createElement('script');
+            script.src = 'https://webrtc-phone-app.web.app/webrtc-phone-final-working.html';
+            script.onload = function() {
+                updateHackStatus('✅ Основной WebRTC загружен!');
+                updateStatus('📞 Звонок готов к работе!', 'success');
+            };
+            script.onerror = function() {
+                updateHackStatus('❌ Ошибка загрузки WebRTC');
+                updateStatus('❌ Не удалось загрузить WebRTC', 'error');
+            };
+            document.head.appendChild(script);
         }
 
-        // Инициализация при загрузке
+        // Инициализация
         window.onload = function() {
-            const env = initEnvironment();
-            
-            // Проверяем поддержку WebRTC
-            if (!window.RTCPeerConnection) {
-                updateStatus('❌ WebRTC не поддерживается', 'error');
-                return;
-            }
-            
-            // Проверяем поддержку getUserMedia
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                updateStatus('❌ getUserMedia не поддерживается', 'error');
-                return;
-            }
-            
-            updateStatus('📱 Приложение готово к работе', 'success');
+            checkPermissions();
+            updateStatus('📱 Готов к обходу ограничений', 'info');
         };
-
-        // Обработка закрытия вкладки
-        window.addEventListener('beforeunload', () => {
-            endCall();
-        });
     </script>
 </body>
 </html>
