@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка Final</h1>
+        <h1>📱 WebRTC Звонилка Final 2</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -211,6 +211,13 @@
                     video: false 
                 });
                 localStream = stream;
+                
+                // Создаем аудио элемент для локального прослушивания
+                const localAudio = new Audio();
+                localAudio.srcObject = localStream;
+                localAudio.volume = 0.1; // Тихий звук для себя
+                localAudio.play().catch(e => console.error('Ошибка локального воспроизведения:', e));
+                
                 updateStatus('🎤 Микрофон подключен', 'success');
                 return stream;
             } catch (error) {
@@ -246,10 +253,21 @@
                 };
 
                 peerConnection.ontrack = (event) => {
-                    console.log('✅ Получен удаленный поток!');
-                    remoteStream = event.streams[0];
-                    updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                    updateCallStatus('📞 Звонок активен');
+                    console.log('✅ Получен удаленный поток!', event.streams);
+                    
+                    if (event.streams && event.streams[0]) {
+                        remoteStream = event.streams[0];
+                        
+                        // Создаем аудио элемент для воспроизведения
+                        const remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.play().catch(e => console.error('Ошибка воспроизведения:', e));
+                        
+                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                        updateCallStatus('📞 Звонок активен');
+                    } else {
+                        console.log('Получен трек без потока:', event.track);
+                    }
                 };
 
                 peerConnection.onconnectionstatechange = () => {
@@ -266,7 +284,9 @@
                 };
 
                 if (localStream) {
+                    console.log('Добавляем локальные треки:', localStream.getTracks());
                     localStream.getTracks().forEach(track => {
+                        console.log('Добавляем трек:', track.kind, track.label);
                         peerConnection.addTrack(track, localStream);
                     });
                 }
