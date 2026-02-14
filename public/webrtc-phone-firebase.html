@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка HJ</h1>
+        <h1>📱 WebRTC HamsterJer</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -139,6 +139,7 @@
             <button id="createCallBtn" class="btn-primary" onclick="createCall()">📞 Создать звонок</button>
             <button id="joinCallBtn" class="btn-primary" onclick="joinCall()">📞 Присоединиться к звонку</button>
             <button id="endCallBtn" class="btn-danger hidden" onclick="endCall()">🔚 Завершить звонок</button>
+            <button id="proximityBtn" class="btn-primary hidden" onclick="toggleProximity()">📱 Включить датчик разговора</button>
         </div>
 
         <div id="status" class="status info">📱 Готов к работе</div>
@@ -378,6 +379,28 @@
             if (peerConnection && peerConnection.connectionState === 'connected') {
                 initProximitySensor();
                 updateStatus('📱 Proximity Sensor активирован', 'success');
+                
+                // Показываем кнопку управления
+                document.getElementById('proximityBtn').classList.remove('hidden');
+                document.getElementById('proximityBtn').textContent = '📱 Выключить гашение экрана';
+            }
+        }
+
+        // Переключение Proximity Sensor
+        function toggleProximity() {
+            if (proximitySensor) {
+                // Выключаем
+                proximitySensor.stop();
+                proximitySensor = null;
+                turnScreenOn();
+                isNearEar = false;
+                document.getElementById('proximityBtn').textContent = '📱 Включить гашение экрана';
+                updateStatus('📱 Гашение экрана выключено', 'info');
+            } else {
+                // Включаем
+                initProximitySensor();
+                document.getElementById('proximityBtn').textContent = '📱 Выключить гашение экрана';
+                updateStatus('📱 Гашение экрана включено', 'success');
             }
         }
 
@@ -458,8 +481,8 @@
                         updateStatus('✅ Соединение установлено!', 'success');
                         updateCallStatus('📞 Звонок активен');
                         
-                        // Активируем Proximity Sensor при установке соединения
-                        startProximityMonitoring();
+                        // Показываем кнопку Proximity Sensor
+                        document.getElementById('proximityBtn').classList.remove('hidden');
                     } else if (peerConnection.connectionState === 'disconnected' || 
                               peerConnection.connectionState === 'failed') {
                         updateStatus('❌ Соединение разорвано', 'error');
@@ -471,6 +494,9 @@
                             proximitySensor = null;
                         }
                         turnScreenOn(); // Включаем экран при разрыве
+                        
+                        // Скрываем кнопку Proximity Sensor
+                        document.getElementById('proximityBtn').classList.add('hidden');
                     }
                 };
 
