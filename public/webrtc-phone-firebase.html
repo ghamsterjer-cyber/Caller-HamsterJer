@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Звонилка - Базовая версия</title>
+    <title>WebRTC Звонилка - Финальная рабочая версия</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка Basic</h1>
+        <h1>📱 WebRTC Звонилка Final</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -177,10 +177,14 @@
             updateStatus('❌ Ошибка Firebase: ' + error.message, 'error');
         }
 
-        // WebRTC конфигурация - БЕЗ ICE КАНДИДАТОВ
+        // WebRTC конфигурация с несколькими STUN серверами
         const configuration = {
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
             ]
         };
 
@@ -219,26 +223,40 @@
             try {
                 peerConnection = new RTCPeerConnection(configuration);
 
-                // БЕЗ ICE КАДИДАТОВ - просто логируем
+                // ICE кандидаты - отправляем в Firebase
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат (игнорируем):', event.candidate);
+                        console.log('ICE кандидат:', event.candidate);
+                        const candidateData = {
+                            candidate: event.candidate.candidate,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex,
+                            sdpMid: event.candidate.sdpMid
+                        };
+                        
+                        if (isInitiator && roomKey) {
+                            console.log('Отправляем callerCandidate');
+                            database.ref(`rooms/${roomKey}/callerCandidates`).push(candidateData);
+                        } else if (!isInitiator && roomKey) {
+                            console.log('Отправляем calleeCandidate');
+                            database.ref(`rooms/${roomKey}/calleeCandidates`).push(candidateData);
+                        }
                     } else {
                         console.log('ICE кандидаты завершены');
                     }
                 };
 
                 peerConnection.ontrack = (event) => {
-                    console.log('Получен удаленный поток');
+                    console.log('✅ Получен удаленный поток!');
                     remoteStream = event.streams[0];
-                    updateCallStatus('🔊 Звонок активен - слышно собеседника');
+                    updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                    updateCallStatus('📞 Звонок активен');
                 };
 
                 peerConnection.onconnectionstatechange = () => {
                     console.log('Состояние соединения:', peerConnection.connectionState);
                     
                     if (peerConnection.connectionState === 'connected') {
-                        updateStatus('✅ Соединение установлено', 'success');
+                        updateStatus('✅ Соединение установлено!', 'success');
                         updateCallStatus('📞 Звонок активен');
                     } else if (peerConnection.connectionState === 'disconnected' || 
                               peerConnection.connectionState === 'failed') {
@@ -260,10 +278,36 @@
             }
         }
 
+        function listenForIceCandidates(candidateType) {
+            if (!roomKey || !peerConnection) return;
+            
+            console.log(`Начинаем слушать ${candidateType}`);
+            
+            const candidatesRef = database.ref(`rooms/${roomKey}/${candidateType}`);
+            
+            candidatesRef.on('child_added', async (snapshot) => {
+                const candidateData = snapshot.val();
+                console.log(`Получен ${candidateType}:`, candidateData);
+                
+                try {
+                    const candidate = new RTCIceCandidate({
+                        candidate: candidateData.candidate,
+                        sdpMLineIndex: candidateData.sdpMLineIndex,
+                        sdpMid: candidateData.sdpMid
+                    });
+                    
+                    await peerConnection.addIceCandidate(candidate);
+                    console.log(`${candidateType} добавлен успешно`);
+                } catch (error) {
+                    console.error(`Ошибка добавления ${candidateType}:`, error);
+                }
+            });
+        }
+
         async function createCall() {
             try {
                 if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
+                    updateStatus('❌ Firebase не инициализирован', 'error');
                     return;
                 }
 
@@ -283,10 +327,13 @@
                 // Очищаем предыдущие данные
                 await database.ref(`rooms/${roomKey}`).remove();
                 
+                // Начинаем слушать ICE кандидаты ДО создания offer
+                listenForIceCandidates('calleeCandidates');
+                
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 
-                console.log('Offer создан и установлен');
+                console.log('✅ Offer создан');
                 
                 // Сохраняем offer в Firebase
                 await database.ref(`rooms/${roomKey}`).set({
@@ -298,7 +345,7 @@
                     timestamp: Date.now()
                 });
                 
-                console.log('Offer сохранен в Firebase');
+                console.log('✅ Offer сохранен в Firebase');
                 
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
@@ -311,14 +358,15 @@
                 startAnswerListener();
                 
             } catch (error) {
-                updateStatus(`❌ Ошибка создания звонка: ${error.message}`, 'error');
+                console.error('Ошибка создания звонка:', error);
+                updateStatus(`❌ Ошибка: ${error.message}`, 'error');
             }
         }
 
         async function joinCall() {
             try {
                 if (!database || !database.ref) {
-                    updateStatus('❌ Firebase не инициализирован. Перезагрузите страницу.', 'error');
+                    updateStatus('❌ Firebase не инициализирован', 'error');
                     return;
                 }
 
@@ -335,6 +383,9 @@
                 
                 isInitiator = false;
                 
+                // Начинаем слушать ICE кандидаты ДО поиска offer
+                listenForIceCandidates('callerCandidates');
+                
                 document.getElementById('createCallBtn').disabled = true;
                 document.getElementById('joinCallBtn').disabled = true;
                 document.getElementById('endCallBtn').classList.remove('hidden');
@@ -343,7 +394,8 @@
                 startOfferListener();
                 
             } catch (error) {
-                updateStatus(`❌ Ошибка присоединения: ${error.message}`, 'error');
+                console.error('Ошибка присоединения:', error);
+                updateStatus(`❌ Ошибка: ${error.message}`, 'error');
             }
         }
 
@@ -360,7 +412,7 @@
                 
                 if (roomData && roomData.offer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('Получен offer:', roomData.offer);
+                        console.log('📥 Получен offer');
                         
                         const offer = {
                             type: roomData.offer.type,
@@ -372,7 +424,7 @@
                         const answer = await peerConnection.createAnswer();
                         await peerConnection.setLocalDescription(answer);
                         
-                        console.log('Answer создан и установлен');
+                        console.log('✅ Answer создан');
                         
                         // Сохраняем answer в Firebase
                         await database.ref(`rooms/${roomKey}/answer`).set({
@@ -380,7 +432,7 @@
                             type: answer.type
                         });
                         
-                        console.log('Answer сохранен в Firebase');
+                        console.log('✅ Answer сохранен в Firebase');
                         
                         updateStatus('✅ Ответ отправлен', 'success');
                         updateCallStatus('📞 Устанавливаем соединение...');
@@ -390,7 +442,7 @@
                         
                     } catch (error) {
                         console.error('Ошибка обработки offer:', error);
-                        updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
+                        updateStatus(`❌ Ошибка: ${error.message}`, 'error');
                     }
                 } else {
                     console.log('Offer еще не найден, ждем...');
@@ -411,7 +463,7 @@
                 
                 if (roomData && roomData.answer && !peerConnection.currentRemoteDescription) {
                     try {
-                        console.log('Получен answer:', roomData.answer);
+                        console.log('📥 Получен answer');
                         
                         const answer = {
                             type: roomData.answer.type,
@@ -428,7 +480,7 @@
                         
                     } catch (error) {
                         console.error('Ошибка обработки answer:', error);
-                        updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
+                        updateStatus(`❌ Ошибка: ${error.message}`, 'error');
                     }
                 } else {
                     console.log('Answer еще не найден, ждем...');
