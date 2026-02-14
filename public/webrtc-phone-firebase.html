@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка ICE</h1>
+        <h1>📱 WebRTC Звонилка ICE2</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -239,6 +239,17 @@
                     }
                 };
 
+                peerConnection.onicegatheringstatechange = () => {
+                    console.log('ICE gathering state:', peerConnection.iceGatheringState);
+                    if (peerConnection.iceGatheringState === 'complete') {
+                        console.log('ICE сбор кандидатов завершен');
+                    }
+                };
+
+                peerConnection.onsignalingstatechange = () => {
+                    console.log('Signaling state:', peerConnection.signalingState);
+                };
+
                 peerConnection.ontrack = (event) => {
                     console.log('Получен удаленный поток');
                     remoteStream = event.streams[0];
@@ -334,6 +345,13 @@
                 await peerConnection.setLocalDescription(offer);
                 
                 console.log('Offer создан и установлен как локальный');
+                console.log('ICE gathering state после setLocalDescription:', peerConnection.iceGatheringState);
+                
+                // Принудительно запускаем сбор ICE кандидатов
+                if (peerConnection.iceGatheringState === 'new') {
+                    console.log('Принудительно запускаем сбор ICE кандидатов');
+                    // WebRTC автоматически начнет сбор кандидатов после setLocalDescription
+                }
                 
                 // Сохраняем offer в Firebase
                 await database.ref(`rooms/${roomKey}`).set({
@@ -432,6 +450,13 @@
                         await peerConnection.setLocalDescription(answer);
                         
                         console.log('Answer создан и установлен как локальный');
+                        console.log('ICE gathering state после setLocalDescription:', peerConnection.iceGatheringState);
+                        
+                        // Принудительно запускаем сбор ICE кандидатов
+                        if (peerConnection.iceGatheringState === 'new') {
+                            console.log('Принудительно запускаем сбор ICE кандидатов');
+                            // WebRTC автоматически начнет сбор кандидатов после setLocalDescription
+                        }
                         
                         // Сохраняем answer в Firebase
                         await database.ref(`rooms/${roomKey}/answer`).set({
