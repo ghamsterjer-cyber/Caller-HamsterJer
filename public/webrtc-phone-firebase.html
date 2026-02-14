@@ -124,7 +124,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 HJWebRTC Звонилка3</h1>
+        <h1>📱 HJWebRTC Звонилка</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -243,10 +243,24 @@
                         
                         const remoteAudio = new Audio();
                         remoteAudio.srcObject = remoteStream;
-                        remoteAudio.play();
+                        remoteAudio.autoplay = true;
+                        remoteAudio.muted = false;
+                        remoteAudio.volume = 1.0;
+                        remoteAudio.setAttribute('playsinline', 'true');
                         
-                        updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
-                        updateCallStatus('📞 Звонок активен');
+                        // Принудительное воспроизведение
+                        document.body.appendChild(remoteAudio);
+                        
+                        const playPromise = remoteAudio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                updateStatus('🔊 Звонок активен - слышно собеседника', 'success');
+                                updateCallStatus('📞 Звонок активен');
+                            }).catch(e => {
+                                console.error('Ошибка воспроизведения:', e);
+                                updateStatus('❌ Ошибка воспроизведения аудио', 'error');
+                            });
+                        }
                     }
                 };
 
