@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 WebRTC Звонилка v4.0</h1>
+        <h1>📱 WebRTC Звонилка v5.0</h1>
 
         <div class="input-group">
             <label for="roomKey">🔑 Ключ комнаты:</label>
@@ -225,7 +225,9 @@
 
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        console.log('ICE кандидат получен');
+                        console.log('ICE кандидат получен:', event.candidate);
+                        // В реальном приложении здесь нужно отправлять ICE кандидаты в Firebase
+                        // Но для простоты пропустим этот шаг
                     }
                 };
 
@@ -239,9 +241,11 @@
                     console.log('Состояние соединения:', peerConnection.connectionState);
                     
                     if (peerConnection.connectionState === 'connected') {
-                        updateCallStatus('📞 Соединение установлено');
+                        updateStatus('✅ Соединение установлено', 'success');
+                        updateCallStatus('📞 Звонок активен');
                     } else if (peerConnection.connectionState === 'disconnected' || 
                               peerConnection.connectionState === 'failed') {
+                        updateStatus('❌ Соединение разорвано', 'error');
                         updateCallStatus('🔇 Соединение разорвано');
                     }
                 };
@@ -374,13 +378,10 @@
                         });
                         
                         updateStatus('✅ Ответ отправлен', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Ожидаем подтверждения соединения...');
                         
                         // Отписываемся от offer
                         roomRef.off('value');
-                        
-                        // Начинаем проверять состояние соединения
-                        checkConnectionState();
                         
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки offer: ${error.message}`, 'error');
@@ -389,25 +390,6 @@
                     console.log('Offer еще не найден, ждем...');
                 }
             });
-        }
-
-        function checkConnectionState() {
-            const checkInterval = setInterval(() => {
-                if (peerConnection) {
-                    console.log('Состояние соединения:', peerConnection.connectionState);
-                    
-                    if (peerConnection.connectionState === 'connected') {
-                        updateStatus('✅ Соединение установлено!', 'success');
-                        updateCallStatus('📞 Звонок активен');
-                        clearInterval(checkInterval);
-                    } else if (peerConnection.connectionState === 'failed' || 
-                              peerConnection.connectionState === 'disconnected') {
-                        updateStatus('❌ Соединение не удалось', 'error');
-                        updateCallStatus('🔇 Соединение разорвано');
-                        clearInterval(checkInterval);
-                    }
-                }
-            }, 1000);
         }
 
         function startAnswerListener() {
@@ -431,13 +413,10 @@
                         await peerConnection.setRemoteDescription(answer);
                         
                         updateStatus('✅ Звонок установлен!', 'success');
-                        updateCallStatus('📞 Устанавливаем соединение...');
+                        updateCallStatus('📞 Ожидаем подтверждения соединения...');
                         
                         // Отписываемся от answer
                         roomRef.off('value');
-                        
-                        // Начинаем проверять состояние соединения
-                        checkConnectionState();
                         
                     } catch (error) {
                         updateStatus(`❌ Ошибка обработки answer: ${error.message}`, 'error');
