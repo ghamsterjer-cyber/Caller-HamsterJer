@@ -1,13 +1,11 @@
 {
   "hosting": {
+    "site": "webrtc-phone-app",
     "source": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "frameworksBackend": {
-      "region": "europe-west1"
-    }
+    ]
   }
 }
