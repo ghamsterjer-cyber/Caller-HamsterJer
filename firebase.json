@@ -1,7 +1,7 @@
 {
   "hosting": {
     "site": "webrtc-phone-app",
-    "public": "out",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -11,3 +11,4 @@
     "trailingSlash": false
   }
 }
+
