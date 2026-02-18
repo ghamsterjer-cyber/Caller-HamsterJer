@@ -1,0 +1,11 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Полный доступ для работы звонилки и прокси-чата
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
