@@ -68,12 +68,18 @@ const tutorialSteps: TutorialStep[] = [
     },
 ];
 
+// Расширенный список STUN-серверов для повышения надежности
 const iceServers = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun.services.mozilla.com" },
+    { urls: "stun:stun.stunprotocol.org:3478" },
+    { urls: "stun:stun.voiparound.com" },
+    { urls: "stun:stun.voipbuster.com" },
+    { urls: "stun:stun.voipstunt.com" },
+    { urls: "stun:stun.xten.com" },
   ],
 };
 
@@ -107,15 +113,6 @@ export default function WebRTCCaller() {
         setShowTutorial(true);
         localStorage.setItem('webrtc-tutorial-shown', 'true');
       }
-  }, []);
-
-  useEffect(() => {
-    if (ringingAudioRef.current) {
-      ringingAudioRef.current.src = RINGTONE_PATH;
-    }
-    if (disconnectAudioRef.current) {
-      disconnectAudioRef.current.src = DISCONNECT_TONE_PATH;
-    }
   }, []);
 
   const addLog = useCallback((message: string) => {
@@ -335,7 +332,6 @@ export default function WebRTCCaller() {
     setCallState("creating");
     addLog(`Создание комнаты: ${roomKey}`);
     isInitiatorRef.current = true;
-    let answerHandled = false;
     
     await initLocalStream();
     const pc = initializePeerConnection();
@@ -352,8 +348,8 @@ export default function WebRTCCaller() {
             return;
         }
         const roomData = snapshot.val();
-        if (roomData.answer && pc.signalingState !== 'stable' && !answerHandled) {
-            answerHandled = true;
+        // Устанавливаем remote description, если он есть и еще не был установлен
+        if (roomData.answer && pc.remoteDescription?.type !== 'answer') {
             addLog("Получен Answer.");
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(roomData.answer));
@@ -366,9 +362,9 @@ export default function WebRTCCaller() {
     // Listen for callee's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/calleeCandidates`, (snapshot) => {
         if (snapshot.exists()) {
-            const candidate = new RTCIceCandidate(snapshot.val());
             addLog("Получен ICE-кандидат от собеседника.");
-            pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+            pc.addIceCandidate(new RTCIceCandidate(snapshot.val()))
+              .catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
         }
     });
     
@@ -381,7 +377,6 @@ export default function WebRTCCaller() {
     
         setCallState("waiting");
         if (ringingAudioRef.current) {
-          ringingAudioRef.current.load();
           ringingAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
         }
     } catch(e) {
@@ -398,7 +393,6 @@ export default function WebRTCCaller() {
     setCallState("joining");
     addLog(`Присоединение к комнате: ${roomKey}`);
     isInitiatorRef.current = false;
-    let offerHandled = false;
 
     await initLocalStream();
     const pc = initializePeerConnection();
@@ -409,9 +403,9 @@ export default function WebRTCCaller() {
     // Listen for caller's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/callerCandidates`, (snapshot) => {
         if (snapshot.exists()) {
-            const candidate = new RTCIceCandidate(snapshot.val());
              addLog("Получен ICE-кандидат от создателя.");
-             pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+             pc.addIceCandidate(new RTCIceCandidate(snapshot.val()))
+              .catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
         }
     });
 
@@ -423,8 +417,7 @@ export default function WebRTCCaller() {
       }
 
       const roomData = snapshot.val();
-      if (roomData.offer && !offerHandled) {
-          offerHandled = true;
+      if (roomData.offer && pc.remoteDescription?.type !== 'offer') {
           addLog("Получен Offer.");
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
@@ -505,8 +498,8 @@ export default function WebRTCCaller() {
     <>
       <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} steps={tutorialSteps} />
       <div className="w-full max-w-2xl mx-auto space-y-4">
-        <audio ref={ringingAudioRef} loop playsInline style={{ display: "none" }} />
-        <audio ref={disconnectAudioRef} playsInline style={{ display: "none" }} />
+        <audio ref={ringingAudioRef} src={RINGTONE_PATH} loop playsInline style={{ display: "none" }} />
+        <audio ref={disconnectAudioRef} src={DISCONNECT_TONE_PATH} playsInline style={{ display: "none" }} />
         <Card className="w-full shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
