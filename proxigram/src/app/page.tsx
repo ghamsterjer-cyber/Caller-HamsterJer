@@ -19,6 +19,7 @@ export default function ProxigramApp() {
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Учитываем basePath при определении URL
       setAppUrl(window.location.origin);
     }
   }, []);
@@ -42,6 +43,7 @@ export default function ProxigramApp() {
     }
     return firestoreMessages.map(m => ({
       ...m,
+      id: m.id,
       timestamp: m.timestamp?.toDate() || new Date()
     }));
   }, [firestoreMessages]);
@@ -56,7 +58,6 @@ export default function ProxigramApp() {
         uptime: 24,
       });
     }, 3000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -80,17 +81,6 @@ export default function ProxigramApp() {
       fileName: file.name,
       fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB'
     });
-  };
-
-  const activeProxy: ProxyConfig = {
-    id: "internal",
-    ipAddress: appUrl.replace('https://', '').replace('http://', ''),
-    port: 443,
-    location: "Cloud (Automatic)",
-    estimatedLatencyMs: 15,
-    estimatedThroughputMbps: 200,
-    currentLoad: 0.1,
-    isInternal: true
   };
 
   return (
