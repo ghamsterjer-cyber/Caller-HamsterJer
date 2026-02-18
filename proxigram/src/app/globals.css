@@ -1,0 +1,53 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 96%;
+    --foreground: 261 43% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 261 43% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 261 43% 15%;
+    --primary: 261 43% 47%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 231 48% 48%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 261 10% 40%;
+    --accent: 231 48% 90%;
+    --accent-foreground: 231 48% 30%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 261 43% 47%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
+
+.telegram-bg {
+  background-image: url("https://picsum.photos/seed/bg/1200/800");
+  background-size: cover;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.chat-bubble-right {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+.chat-bubble-left {
+  background: white;
+  color: hsl(var(--foreground));
+  border-bottom-left-radius: 2px;
+}
