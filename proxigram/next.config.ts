@@ -1,8 +1,8 @@
 
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* Базовый путь для работы внутри папки на хостинге */
+  /* Базовый путь для работы в подпапке */
   basePath: '/proxigram',
   typescript: {
     ignoreBuildErrors: true,
@@ -12,12 +12,6 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
