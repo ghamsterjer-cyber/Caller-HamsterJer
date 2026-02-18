@@ -68,7 +68,6 @@ const tutorialSteps: TutorialStep[] = [
     },
 ];
 
-// Расширенный список STUN-серверов для повышения надежности
 const iceServers = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -113,6 +112,14 @@ export default function WebRTCCaller() {
         setShowTutorial(true);
         localStorage.setItem('webrtc-tutorial-shown', 'true');
       }
+      
+      // Preload audio files when component mounts
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.load();
+      }
+      if (disconnectAudioRef.current) {
+        disconnectAudioRef.current.load();
+      }
   }, []);
 
   const addLog = useCallback((message: string) => {
@@ -139,11 +146,9 @@ export default function WebRTCCaller() {
       disconnectAudioRef.current &&
       (previousState === 'active' || previousState === 'waiting')
     ) {
-      disconnectAudioRef.current
-        .play()
-        .catch((e) =>
+      disconnectAudioRef.current.play().catch((e) =>
           addLog(`Не удалось воспроизвести звук отключения: ${e.message}`)
-        );
+      );
     }
 
     firebaseListenersRef.current.forEach(({ path, type }) => {
@@ -340,7 +345,6 @@ export default function WebRTCCaller() {
     const roomRef = ref(database, `rooms/${roomKey}`);
     await remove(roomRef);
 
-    // Listen for room changes (answer and deletion)
     setupFirebaseListener(`rooms/${roomKey}`, async (snapshot) => {
         if (!snapshot.exists()) {
             addLog("Комната удалена, завершение вызова.");
@@ -348,7 +352,6 @@ export default function WebRTCCaller() {
             return;
         }
         const roomData = snapshot.val();
-        // Устанавливаем remote description, если он есть и еще не был установлен
         if (roomData.answer && pc.remoteDescription?.type !== 'answer') {
             addLog("Получен Answer.");
             try {
@@ -359,7 +362,6 @@ export default function WebRTCCaller() {
         }
     });
 
-    // Listen for callee's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/calleeCandidates`, (snapshot) => {
         if (snapshot.exists()) {
             addLog("Получен ICE-кандидат от собеседника.");
@@ -400,7 +402,6 @@ export default function WebRTCCaller() {
 
     const roomRef = ref(database, `rooms/${roomKey}`);
     
-    // Listen for caller's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/callerCandidates`, (snapshot) => {
         if (snapshot.exists()) {
              addLog("Получен ICE-кандидат от создателя.");
@@ -421,10 +422,8 @@ export default function WebRTCCaller() {
           addLog("Получен Offer.");
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-
             await update(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
             addLog("Answer создан и отправлен.");
           } catch(e) {
