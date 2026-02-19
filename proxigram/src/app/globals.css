@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,11 +25,14 @@
     --ring: 261 43% 47%;
     --radius: 0.75rem;
   }
-}
 
-@layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 .telegram-bg {
