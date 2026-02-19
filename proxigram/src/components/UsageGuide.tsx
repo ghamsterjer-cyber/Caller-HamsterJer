@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Code2, Copy, Check, AlertTriangle, Info, ExternalLink, Globe, Zap } from "lucide-react"
+import { Code2, Copy, Check, AlertTriangle, Info, ExternalLink, Globe, Zap } from "lucide-center"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
@@ -50,13 +50,13 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
         </p>
         <div className="relative">
           <div className="text-[10px] font-mono bg-white p-3 pr-10 border rounded break-all">
-            https://ВАШ-ПРОЕКТ.vercel.app/api/proxy/botTOKEN/getMe
+            https://ВАШ-ПРОЕКТ.vercel.app/proxigram/api/proxy/botTOKEN/getMe
           </div>
           <Button 
             size="icon" 
             variant="ghost" 
             className="absolute top-1 right-1 h-7 w-7"
-            onClick={() => copyToClipboard("https://ВАШ-ПРОЕКТ.vercel.app/api/proxy/")}
+            onClick={() => copyToClipboard("https://ВАШ-ПРОЕКТ.vercel.app/proxigram/api/proxy/")}
           >
             {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
           </Button>
