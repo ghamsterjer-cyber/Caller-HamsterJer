@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Code2, Copy, Check, Cloud, Info } from "lucide-react"
+import { Code2, Copy, Check, AlertTriangle, Info, ExternalLink, Globe, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
@@ -17,68 +17,97 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: "Скопировано", description: "Пример кода скопирован." });
+    toast({ title: "Скопировано", description: "Код для Vercel прокси скопирован." });
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Формируем правильный URL прокси с учетом basePath
-  const proxyBaseUrl = `${appUrl}/proxigram/api/proxy`;
+  const vercelProxyCode = `// 1. Создайте в Vercel новый проект из вашего GitHub
+// 2. В папке /proxigram/src/app/api/proxy/route.ts уже лежит этот код.
+// 3. Vercel сам запустит его как Serverless Function.
 
-  const fetchCode = `// Используйте этот URL вместо api.telegram.org
-const PROXY_URL = "${proxyBaseUrl}";
-const BOT_TOKEN = "ВАШ_ТОКЕН_БОТА";
+// Если вы хотите создать отдельный мини-прокси, используйте этот JS:
+export default async function handler(req, res) {
+  const { path } = req.query;
+  const pathString = Array.isArray(path) ? path.join('/') : path;
+  const searchParams = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
+  const telegramUrl = \`https://api.telegram.org/\${pathString}\${searchParams}\`;
 
-// Запрос через Proxigram:
-const apiUrl = \`\${PROXY_URL}/bot\${BOT_TOKEN}/getMe\`;
+  try {
+    const response = await fetch(telegramUrl, {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: req.method === 'POST' ? JSON.stringify(req.body) : null,
+    });
 
-fetch(apiUrl)
-  .then(res => res.json())
-  .then(data => console.log("Работает через прокси!", data));`;
-
-  const isPreview = appUrl?.includes('cloudworkstations.dev');
+    const data = await response.json();
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.status(response.status).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}`;
 
   return (
     <div className="space-y-6">
-      <Alert className="bg-primary/5 border-primary/20">
-        <Cloud className="h-4 w-4 text-primary" />
-        <AlertTitle className="text-primary font-bold">Cloud Proxy Active</AlertTitle>
+      <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+        <AlertTriangle className="h-4 w-4 text-destructive" />
+        <AlertTitle className="text-destructive font-bold">Ограничение тарифа Spark</AlertTitle>
         <AlertDescription className="text-xs">
-          Ваш прокси доступен по пути <code className="bg-white px-1 rounded">/proxigram/api/proxy</code>.
+          На бесплатном тарифе Firebase нельзя запускать серверный код. Мы используем <strong>Vercel</strong> (он работает в РФ и бесплатен) для связи с Telegram API.
         </AlertDescription>
       </Alert>
 
-      {isPreview && (
-        <Alert variant="destructive" className="bg-amber-50 border-amber-200 text-amber-800">
-          <Info className="h-4 w-4 text-amber-800" />
-          <AlertTitle className="font-bold">Preview Mode</AlertTitle>
-          <AlertDescription className="text-[10px]">
-            Вы используете временную ссылку для разработки. Внешние POST-запросы могут блокироваться Google. 
-            После <strong>Deploy</strong> и получения домена <code>.web.app</code> всё заработает для бота.
-          </AlertDescription>
-        </Alert>
-      )}
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary" /> Шаг 1: Деплой на Vercel
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Вы уже связали GitHub! Теперь просто импортируйте репозиторий в Vercel, выберите папку <code>proxigram</code> как корневую и нажмите Deploy.
+        </p>
+      </div>
 
-      <div className="relative group">
-        <div className="absolute top-2 left-4 text-[10px] text-muted-foreground font-bold uppercase z-10">
-          Integration Guide (JS)
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Code2 className="h-4 w-4 text-primary" /> Шаг 2: Код прокси
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Если вы создаете прокси отдельно, используйте этот код в файле <code>api/proxy.js</code>:
+        </p>
+        <div className="relative group">
+          <pre className="p-4 rounded-lg bg-slate-950 text-slate-50 text-[10px] font-mono overflow-x-auto leading-relaxed">
+            {vercelProxyCode}
+          </pre>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="absolute top-2 right-2 text-white hover:bg-white/10"
+            onClick={() => copyToClipboard(vercelProxyCode)}
+          >
+            {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+          </Button>
         </div>
-        <pre className="p-4 pt-10 rounded-lg bg-slate-950 text-slate-50 text-[10px] font-mono overflow-x-auto leading-relaxed">
-          {fetchCode}
-        </pre>
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          className="absolute top-2 right-2 text-white hover:bg-white/10"
-          onClick={() => copyToClipboard(fetchCode)}
-        >
-          {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-        </Button>
       </div>
 
-      <div className="text-[10px] text-muted-foreground p-3 border rounded-lg bg-muted/30">
-        <p className="font-bold mb-2">Как это работает?</p>
-        <p>Этот сервис принимает запросы и пересылает их в Telegram, обходя блокировки или скрывая ваш реальный IP. Все переданные файлы логируются во вкладке чата для отладки.</p>
+      <div className="p-4 border rounded-xl bg-primary/5 space-y-3">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Info className="h-4 w-4 text-primary" /> Шаг 3: Ваш URL
+        </h3>
+        <p className="text-xs">
+          После деплоя ваш адрес для запросов будет:
+        </p>
+        <div className="text-[10px] font-mono bg-white p-2 border rounded break-all">
+          https://ВАШ-ПРОЕКТ.vercel.app/api/proxy?path=botTOKEN/getMe
+        </div>
       </div>
+
+      <a 
+        href="https://vercel.com/new" 
+        target="_blank" 
+        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-black text-white text-sm hover:bg-zinc-800 transition-colors"
+      >
+        Открыть Vercel Dashboard <ExternalLink className="h-4 w-4" />
+      </a>
     </div>
   )
 }
