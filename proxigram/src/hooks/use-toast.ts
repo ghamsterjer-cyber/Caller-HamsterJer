@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import type { ToastProps } from "@/components/ui/toast"
@@ -11,6 +10,7 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: React.ReactNode
+  open?: boolean
 }
 
 let count = 0
@@ -21,11 +21,18 @@ function genId() {
 
 export function useToast() {
   const [toasts, setToasts] = React.useState<ToasterToast[]>([])
-  const toast = React.useCallback(({ ...props }: Omit<ToasterToast, "id">) => {
+  
+  const toast = React.useCallback(({ ...props }: Omit<ToasterToast, 'id' | 'open'>) => {
     const id = genId()
     setToasts((prev) => [{ ...props, id, open: true }, ...prev].slice(0, TOAST_LIMIT))
     return id
   }, [])
 
-  return { toasts, toast, dismiss: (id?: string) => setToasts((prev) => id ? prev.filter(t => t.id !== id) : []) }
+  const dismiss = React.useCallback((id?: string) => {
+    setToasts((prev) => id ? prev.filter(t => t.id !== id) : [])
+  }, [])
+
+  return { toasts, toast, dismiss }
 }
+
+export { useToast as toast }
