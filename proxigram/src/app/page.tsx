@@ -155,6 +155,7 @@ export default function ProxigramApp() {
       </div>
 
       <main className="flex-1 flex overflow-hidden">
+        {/* Chat Area */}
         <div className="flex-1 min-w-0 flex flex-col border-r">
           <ChatInterface 
             messages={messages} 
@@ -163,6 +164,7 @@ export default function ProxigramApp() {
           />
         </div>
 
+        {/* Manager Panel */}
         <div className="w-[480px] bg-card flex flex-col overflow-hidden shadow-2xl">
           <div className="p-6 border-b flex items-center justify-between bg-white">
             <div className="flex flex-col">
@@ -177,6 +179,7 @@ export default function ProxigramApp() {
             <Rocket className={`h-5 w-5 ${isUnlimitedMode ? 'text-blue-500' : 'text-muted-foreground'}`} />
           </div>
 
+          {/* Proxy URL Setup */}
           <div className={`px-6 py-5 border-b transition-colors ${isUnlimitedMode ? 'bg-blue-50/30' : 'bg-amber-50/30'}`}>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
