@@ -2,9 +2,9 @@
 "use client"
 
 import * as React from "react"
-import { Copy, Check, ExternalLink, Zap, Server, Shield, Layers, HelpCircle, AlertCircle, MousePointer2, Network, CheckCircle2 } from "lucide-react"
+import { Copy, Check, ExternalLink, Zap, AlertCircle, CheckCircle2, Cloud } from "lucide-react"
 import { Button } from "../components/ui/button"
-import { toast } from "../hooks/use-toast"
+import { useToast } from "../hooks/use-toast"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion"
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
 
@@ -14,43 +14,89 @@ interface UsageGuideProps {
 
 export function UsageGuide({ appUrl }: UsageGuideProps) {
   const [copied, setCopied] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
   const copyToClipboard = (text: string, id: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setCopied(id);
-    toast({ title: "Скопировано", description: "Адрес прокси готов к использованию." });
+    toast({ title: "Скопировано", description: "Текст готов к использованию." });
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const isRailway = appUrl?.includes("railway.app");
-  const finalProxyUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/api/proxy/` : "";
+  const isHighLoad = appUrl?.includes("workers.dev") || appUrl?.includes("railway.app");
   
-  // Пример кода для бота
-  const exampleCode = `// Пример использования в вашем коде:
-const PROXY = "${finalProxyUrl}";
-const TOKEN = "ВАШ_ТОКЕН_БОТА";
-const url = \`\${PROXY}bot\${TOKEN}/sendAudio\`;`;
+  // Если настроен воркер, используем его адрес напрямую как базу
+  const finalProxyUrl = appUrl ? (isHighLoad ? `${appUrl.replace(/\/$/, '')}/` : `${appUrl.replace(/\/$/, '')}/api/proxy/`) : "";
+  
+  const cfWorkerCode = `export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    // Удаляем первый слеш из пути, чтобы получить путь для Telegram API
+    const path = url.pathname.replace(/^\\//, "");
+    if (!path) return new Response("Proxigram Proxy Active", { status: 200 });
+    
+    const targetUrl = \`https://api.telegram.org/\${path}\${url.search}\`;
+
+    // Копируем заголовки и выставляем Host
+    const newHeaders = new Headers(request.headers);
+    newHeaders.set("Host", "api.telegram.org");
+
+    return fetch(targetUrl, {
+      method: request.method,
+      headers: newHeaders,
+      body: request.body,
+      redirect: "follow",
+    });
+  }
+};`;
 
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold flex items-center gap-2">
-            <Zap className={`h-4 w-4 ${isRailway ? 'text-blue-500' : 'text-primary'}`} /> 
-            Основной Endpoint для бота
-          </h3>
-          {isRailway && (
-            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold animate-pulse">
-              UNLIMITED 100MB+
-            </span>
-          )}
-        </div>
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Cloud className="h-4 w-4 text-emerald-500" /> 
+          Бесплатный Прокси 100MB (Cloudflare)
+        </h3>
+        
+        <Alert className="bg-emerald-50 border-emerald-200">
+          <AlertCircle className="h-4 w-4 text-emerald-600" />
+          <AlertTitle className="text-emerald-800 text-xs font-bold uppercase">Как настроить (по вашему скриншоту):</AlertTitle>
+          <AlertDescription className="text-emerald-700 text-[10px] leading-tight mt-1 space-y-2">
+            <p>1. В Cloudflare выберите <b>"Start with Hello World!"</b>.</p>
+            <p>2. Нажмите синюю кнопку <b>Deploy</b> внизу экрана.</p>
+            <p>3. Нажмите появившуюся кнопку <b>Edit Code</b>.</p>
+            <p>4. Удалите весь текст в редакторе и вставьте код из черного блока ниже.</p>
+            <p>5. Нажмите <b>Save and Deploy</b> и скопируйте адрес (он заканчивается на .workers.dev).</p>
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      <div className="relative">
+        <div className="absolute top-2 left-4 text-[9px] font-bold text-muted-foreground uppercase">Код для Cloudflare (вставить в Edit Code):</div>
+        <pre className="p-4 pt-8 bg-slate-900 text-slate-300 rounded-xl text-[10px] font-mono overflow-x-auto border border-slate-800">
+          {cfWorkerCode}
+        </pre>
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="absolute top-2 right-2 h-6 w-6 text-slate-500 hover:text-white"
+          onClick={() => copyToClipboard(cfWorkerCode, 'cfcode')}
+        >
+          {copied === 'cfcode' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        </Button>
+      </div>
+
+      <div className="space-y-3 pt-4 border-t">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Zap className={`h-4 w-4 ${isHighLoad ? 'text-emerald-500' : 'text-primary'}`} /> 
+          Ваш Endpoint для бота
+        </h3>
         
         <div className="relative group">
           <div className={`text-[11px] font-mono p-4 pr-12 border rounded-xl break-all leading-relaxed shadow-inner transition-colors ${
-            isRailway 
-            ? 'bg-blue-50/80 text-blue-700 border-blue-200 ring-2 ring-blue-100' 
+            isHighLoad 
+            ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200 ring-2 ring-emerald-100' 
             : 'bg-white text-muted-foreground border-primary/20'
           }`}>
             {finalProxyUrl || "Ожидание настройки..."}
@@ -65,49 +111,18 @@ const url = \`\${PROXY}bot\${TOKEN}/sendAudio\`;`;
             {copied === 'current' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
-        
-        <p className="text-[10px] text-muted-foreground leading-relaxed px-1 italic">
-          {isRailway 
-            ? "✓ Используйте эту ссылку. Railway пропустит файлы до 100МБ." 
-            : "⚠ Эта ссылка ограничена 4.5МБ (Vercel). Для видео нужен домен Railway."}
+        <p className="text-[9px] text-muted-foreground italic">
+          Эту ссылку вставьте в настройки вашего Telegram бота. Она пропустит файлы до 100 МБ.
         </p>
       </div>
-
-      <div className="relative">
-        <div className="absolute top-2 left-4 text-[9px] font-bold text-muted-foreground uppercase">Код для вставки в бота:</div>
-        <pre className="p-4 pt-8 bg-slate-900 text-slate-300 rounded-xl text-[10px] font-mono overflow-x-auto border border-slate-800">
-          {exampleCode}
-        </pre>
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          className="absolute top-2 right-2 h-6 w-6 text-slate-500 hover:text-white"
-          onClick={() => copyToClipboard(exampleCode, 'code')}
-        >
-          {copied === 'code' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-        </Button>
-      </div>
-
-      {!isRailway && (
-        <Alert className="bg-amber-50 border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800 text-xs font-bold uppercase">Внимание: Лимит 4.5МБ</AlertTitle>
-          <AlertDescription className="text-amber-700 text-[10px] leading-tight mt-1">
-            Вы используете прокси через Vercel. Тяжелые файлы будут выдавать ошибку 413 или 404. 
-            <strong> Подключите Railway</strong> во вкладке сверху для снятия лимитов.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="help" className="border-none bg-muted/30 px-4 rounded-xl">
           <AccordionTrigger className="text-muted-foreground hover:no-underline py-3 text-xs">
-            Как это работает?
+            Зачем это нужно?
           </AccordionTrigger>
           <AccordionContent className="text-[10px] text-muted-foreground space-y-2 pb-4 leading-relaxed">
-            <p>1. <strong>Vercel (UI)</strong>: Красивая оболочка, которую вы видите сейчас.</p>
-            <p>2. <strong>Railway (Engine)</strong>: Мощный сервер, который пересылает данные без ограничений.</p>
-            <p>Когда вы вставляете ссылку Railway в своего бота, данные идут напрямую через мощный сервер, минуя ограничения Vercel.</p>
+            <p>Cloudflare Workers — это самый надежный способ передавать большие файлы (до 100МБ) абсолютно бесплатно. У Vercel лимит 4.5МБ, что не позволяет передавать видео или тяжелые треки. Воркеры решают эту проблему.</p>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
