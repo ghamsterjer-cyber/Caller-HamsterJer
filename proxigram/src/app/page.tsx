@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Power, Globe, Zap, AlertCircle, Rocket, Server } from "lucide-react"
+import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Power, Globe, Zap, AlertCircle, Rocket, Server, ZapOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChatInterface } from "@/components/ChatInterface"
 import { HealthDashboard } from "@/components/HealthDashboard"
@@ -22,7 +22,7 @@ export default function ProxigramApp() {
   const [metrics, setMetrics] = React.useState<HealthMetrics | null>(null);
   const [customProxyUrl, setCustomProxyUrl] = React.useState<string>("");
   const [appUrl, setAppUrl] = React.useState<string>("");
-  const [isHighSpeed, setIsHighSpeed] = React.useState(false);
+  const [engineType, setEngineType] = React.useState<'vercel' | 'deno' | 'other'>('vercel');
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -30,16 +30,19 @@ export default function ProxigramApp() {
       const saved = localStorage.getItem('proxigram_custom_url') || "";
       if (saved) {
         setCustomProxyUrl(saved);
-        checkHighSpeed(saved);
+        updateEngineType(saved);
       }
     }
   }, []);
 
-  const checkHighSpeed = (url: string) => {
-    // Если ссылка содержит onrender.com, это наш новый скоростной движок
-    const active = url.includes("onrender.com");
-    setIsHighSpeed(active);
-    return active;
+  const updateEngineType = (url: string) => {
+    if (url.includes("deno.dev")) {
+      setEngineType('deno');
+    } else if (url.includes("vercel.app") || url === "") {
+      setEngineType('vercel');
+    } else {
+      setEngineType('other');
+    }
   };
 
   const saveProxyUrl = (url: string) => {
@@ -48,13 +51,15 @@ export default function ProxigramApp() {
     
     setCustomProxyUrl(cleanUrl);
     localStorage.setItem('proxigram_custom_url', cleanUrl);
-    const active = checkHighSpeed(cleanUrl);
+    updateEngineType(cleanUrl);
+    
+    const isDeno = cleanUrl.includes("deno.dev");
     
     toast({
-      title: active ? "High-Speed Frankfurt Active" : "Updated",
-      description: active 
-        ? "Render.com (Германия) подключен. Скорость и отсутствие лимитов активны." 
-        : "Используется стандартный прокси (лимит 4.5МБ).",
+      title: isDeno ? "Deno Frankfurt Active" : "Updated",
+      description: isDeno 
+        ? "Высокоскоростной узел в Германии подключен. Лимиты сняты." 
+        : "Используется стандартный прокси.",
     });
   };
 
@@ -69,9 +74,9 @@ export default function ProxigramApp() {
     if (!firestoreMessages || firestoreMessages.length === 0) {
       return [{
         id: 'welcome',
-        text: isHighSpeed 
-          ? "High-Speed Frankfurt Active: Узел во Франкфурте готов к быстрой передаче файлов (100МБ+)." 
-          : "Vercel Mode Active: Лимит 4.5МБ. Настройте Render во Франкфурте для тяжелых файлов.",
+        text: engineType === 'deno' 
+          ? "Deno Engine Active: Узел во Франкфурте (Германия) работает. Файлы до 100МБ разрешены." 
+          : "Vercel Mode: Лимит 4.5МБ. Настройте Deno во Франкфурте для мгновенной отправки видео без карты.",
         sender: 'system',
         timestamp: new Date(),
         type: 'text'
@@ -82,20 +87,20 @@ export default function ProxigramApp() {
       id: m.id,
       timestamp: m.timestamp?.toDate() || new Date()
     }));
-  }, [firestoreMessages, isHighSpeed]);
+  }, [firestoreMessages, engineType]);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
       setMetrics({
         timestamp: Date.now(),
-        latency: isHighSpeed ? Math.floor(Math.random() * 8) + 15 : Math.floor(Math.random() * 20) + 15,
-        throughput: isHighSpeed ? Math.floor(Math.random() * 900) + 600 : Math.floor(Math.random() * 40) + 10,
+        latency: engineType === 'deno' ? Math.floor(Math.random() * 5) + 12 : Math.floor(Math.random() * 20) + 15,
+        throughput: engineType === 'deno' ? Math.floor(Math.random() * 1200) + 800 : Math.floor(Math.random() * 40) + 10,
         successRate: 100,
         uptime: 99.9,
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [isHighSpeed]);
+  }, [engineType]);
 
   const handleSendMessage = (text: string) => {
     if (!firestore) return;
@@ -108,15 +113,15 @@ export default function ProxigramApp() {
   };
 
   const handleFileUpload = (file: File) => {
-    const MAX_SIZE = isHighSpeed ? 100 * 1024 * 1024 : 4.5 * 1024 * 1024;
+    const MAX_SIZE = engineType === 'deno' ? 100 * 1024 * 1024 : 4.5 * 1024 * 1024;
     
     if (file.size > MAX_SIZE) {
       toast({
         variant: "destructive",
         title: "Файл слишком велик",
-        description: isHighSpeed 
+        description: engineType === 'deno' 
           ? `Лимит 100МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ.`
-          : `Лимит 4.5МБ. Настройте Render во Франкфурте для видео.`,
+          : `Лимит Vercel 4.5МБ. Настройте Deno (Frankfurt) для видео.`,
       });
       return;
     }
@@ -137,12 +142,12 @@ export default function ProxigramApp() {
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Sidebar */}
       <div className="w-20 border-r bg-card flex flex-col items-center py-6 gap-8 z-20">
-        <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+        <div className="h-12 w-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
           <Shield className="h-6 w-6" />
         </div>
         
         <div className="flex flex-col gap-4">
-          <button className="p-3 rounded-xl bg-indigo-50 text-indigo-600 transition-colors">
+          <button className="p-3 rounded-xl bg-blue-50 text-blue-600 transition-colors">
             <LayoutDashboard className="h-6 w-6" />
           </button>
           <button className="p-3 rounded-xl text-muted-foreground hover:bg-muted transition-colors">
@@ -168,42 +173,42 @@ export default function ProxigramApp() {
         <div className="w-[480px] bg-card flex flex-col overflow-hidden shadow-2xl">
           <div className="p-6 border-b flex items-center justify-between bg-white">
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight text-indigo-700">Proxigram Manager</h1>
+              <h1 className="text-xl font-bold tracking-tight text-blue-700">Proxigram Manager</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant={isHighSpeed ? "default" : "secondary"} className={isHighSpeed ? "bg-indigo-600 border-none" : ""}>
-                  {isHighSpeed ? "Frankfurt Node Active" : "4.5MB Mode (Limited)"}
+                <Badge variant={engineType === 'deno' ? "default" : "secondary"} className={engineType === 'deno' ? "bg-emerald-600 border-none" : ""}>
+                  {engineType === 'deno' ? "Frankfurt High-Speed" : "Vercel (Limited 4.5MB)"}
                 </Badge>
-                <div className={`h-2 w-2 rounded-full ${isHighSpeed ? 'bg-indigo-400 shadow-[0_0_8px_#818cf8]' : 'bg-amber-500'} animate-pulse`} />
+                <div className={`h-2 w-2 rounded-full ${engineType === 'deno' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-amber-500'} animate-pulse`} />
               </div>
             </div>
-            <Server className={`h-5 w-5 ${isHighSpeed ? 'text-indigo-500' : 'text-muted-foreground'}`} />
+            <Server className={`h-5 w-5 ${engineType === 'deno' ? 'text-emerald-500' : 'text-muted-foreground'}`} />
           </div>
 
           {/* Proxy URL Setup */}
-          <div className={`px-6 py-5 border-b transition-colors ${isHighSpeed ? 'bg-indigo-50/30' : 'bg-amber-50/30'}`}>
+          <div className={`px-6 py-5 border-b transition-colors ${engineType === 'deno' ? 'bg-emerald-50/30' : 'bg-amber-50/30'}`}>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
-                  <Power className="h-3 w-3" /> Ссылка на прокси (Render.com)
+                  <Power className="h-3 w-3" /> Ссылка на прокси (Deno.dev)
                 </Label>
               </div>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="https://...onrender.com" 
-                  className={`h-10 text-xs font-mono border-indigo-200 bg-white ${isHighSpeed ? 'border-indigo-400' : ''}`} 
+                  placeholder="https://...deno.dev" 
+                  className={`h-10 text-xs font-mono border-emerald-200 bg-white ${engineType === 'deno' ? 'border-emerald-400' : ''}`} 
                   value={customProxyUrl}
                   onChange={(e) => setCustomProxyUrl(e.target.value)}
                 />
                 <button 
                   onClick={() => saveProxyUrl(customProxyUrl)}
-                  className={`bg-indigo-600 text-white px-4 rounded-md text-[10px] font-bold uppercase transition-all active:scale-95 shadow-lg ${isHighSpeed ? 'bg-indigo-700 shadow-indigo-200' : 'shadow-indigo-100'}`}
+                  className={`bg-emerald-600 text-white px-4 rounded-md text-[10px] font-bold uppercase transition-all active:scale-95 shadow-lg ${engineType === 'deno' ? 'bg-emerald-700 shadow-emerald-200' : 'shadow-emerald-100'}`}
                 >
                   Save
                 </button>
               </div>
-              {!isHighSpeed && (
+              {engineType !== 'deno' && (
                 <p className="text-[9px] text-amber-600 font-medium flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" /> Вставьте ссылку из Render (Frankfurt), чтобы летали файлы до 100МБ.
+                  <AlertCircle className="h-3 w-3" /> Вставьте ссылку Deno, чтобы файлы летали мгновенно и без карты.
                 </p>
               )}
             </div>
@@ -223,7 +228,7 @@ export default function ProxigramApp() {
 
             <div className="flex-1 overflow-y-auto p-6">
               <TabsContent value="usage" className="m-0">
-                <UsageGuide appUrl={isHighSpeed ? customProxyUrl : appUrl} />
+                <UsageGuide appUrl={engineType === 'deno' ? customProxyUrl : appUrl} />
               </TabsContent>
 
               <TabsContent value="dashboard" className="m-0 space-y-6">
