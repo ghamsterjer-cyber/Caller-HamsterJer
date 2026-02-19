@@ -1,7 +1,8 @@
+
 "use client"
 
 import * as React from "react"
-import { Activity, Clock, Zap, CheckCircle2 } from "lucide-react"
+import { Activity, Clock, Zap } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import { HealthMetrics } from "@/lib/types"
