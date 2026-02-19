@@ -4,10 +4,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   /* Базовый путь для работы в подпапке вашего основного домена */
   basePath: '/proxigram',
-  /* Для Firebase Spark используем статический экспорт */
-  /* Vercel проигнорирует это при деплое API-роутов, что нам и нужно */
-  output: 'export',
-  distDir: 'out',
+  /* ВАЖНО: Мы убираем output: 'export', так как Vercel должен запустить сервер для прокси */
   typescript: {
     ignoreBuildErrors: true,
   },
