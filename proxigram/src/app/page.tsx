@@ -40,12 +40,13 @@ export default function ProxigramApp() {
     
     setCustomProxyUrl(cleanUrl);
     localStorage.setItem('proxigram_custom_url', cleanUrl);
-    setIsRailwayActive(cleanUrl.includes("railway.app"));
+    const active = cleanUrl.includes("railway.app");
+    setIsRailwayActive(active);
     
     toast({
-      title: "Двигатель обновлен",
-      description: cleanUrl.includes("railway.app") 
-        ? "Активирован безлимитный режим Railway (до 100МБ+)." 
+      title: active ? "Активирован High-Load" : "Обновлено",
+      description: active 
+        ? "Система переключена на безлимитный канал Railway (100MB+)." 
         : "Используется стандартный прокси (4.5МБ).",
     });
   };
@@ -63,7 +64,7 @@ export default function ProxigramApp() {
         id: 'welcome',
         text: isRailwayActive 
           ? "Railway Engine Active: Безлимитный режим включен. Файлы до 100МБ разрешены." 
-          : "Vercel Engine Active: Лимит 4.5МБ. Настройте Railway для видео.",
+          : "Vercel Engine Active: Лимит 4.5МБ. Подключите Railway для видео.",
         sender: 'system',
         timestamp: new Date(),
         type: 'text'
@@ -108,7 +109,7 @@ export default function ProxigramApp() {
         title: "Файл слишком велик",
         description: isRailwayActive 
           ? `Railway лимит 100МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ.`
-          : `Vercel лимит 4.5МБ. Для этого файла нужен Railway.`,
+          : `Vercel лимит 4.5МБ. Используйте Railway для этого файла.`,
       });
       return;
     }
@@ -164,33 +165,32 @@ export default function ProxigramApp() {
             <div className="flex flex-col">
               <h1 className="text-xl font-bold tracking-tight text-primary">Proxigram High-Load</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant={isRailwayActive ? "default" : "secondary"} className={isRailwayActive ? "bg-blue-500" : ""}>
+                <Badge variant={isRailwayActive ? "default" : "secondary"} className={isRailwayActive ? "bg-blue-600 border-none" : ""}>
                   {isRailwayActive ? "Railway Unlimited" : "Vercel Basic"}
                 </Badge>
-                <div className={`h-2 w-2 rounded-full ${isRailwayActive ? 'bg-blue-500 shadow-[0_0_8px_#3b82f6]' : 'bg-green-500'} animate-pulse`} />
+                <div className={`h-2 w-2 rounded-full ${isRailwayActive ? 'bg-blue-400 shadow-[0_0_8px_#60a5fa]' : 'bg-green-500'} animate-pulse`} />
               </div>
             </div>
             <Globe className={`h-5 w-5 ${isRailwayActive ? 'text-blue-500' : 'text-muted-foreground'}`} />
           </div>
 
-          <div className="px-6 py-5 border-b bg-muted/30">
+          <div className={`px-6 py-5 border-b transition-colors ${isRailwayActive ? 'bg-blue-50/30' : 'bg-muted/30'}`}>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
-                  <Power className="h-3 w-3" /> Текущий Proxy Endpoint
+                  <Power className="h-3 w-3" /> Настройка прокси-двигателя
                 </Label>
-                {isRailwayActive && <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">100MB+ OK</span>}
               </div>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="https://...railway.app" 
-                  className="h-10 text-xs border-primary/20 bg-white font-mono" 
+                  placeholder="https://...up.railway.app" 
+                  className={`h-10 text-xs font-mono border-primary/20 bg-white ${isRailwayActive ? 'border-blue-300' : ''}`} 
                   value={customProxyUrl}
                   onChange={(e) => setCustomProxyUrl(e.target.value)}
                 />
                 <button 
                   onClick={() => saveProxyUrl(customProxyUrl)}
-                  className="bg-primary text-white px-4 rounded-md text-[10px] font-bold uppercase transition-transform active:scale-95 shadow-lg shadow-primary/20"
+                  className={`bg-primary text-white px-4 rounded-md text-[10px] font-bold uppercase transition-all active:scale-95 shadow-lg ${isRailwayActive ? 'bg-blue-600 shadow-blue-200' : 'shadow-primary/20'}`}
                 >
                   Save
                 </button>
@@ -212,7 +212,7 @@ export default function ProxigramApp() {
 
             <div className="flex-1 overflow-y-auto p-6">
               <TabsContent value="usage" className="m-0">
-                <UsageGuide appUrl={customProxyUrl || appUrl} />
+                <UsageGuide appUrl={isRailwayActive ? customProxyUrl : appUrl} />
               </TabsContent>
 
               <TabsContent value="dashboard" className="m-0 space-y-6">
