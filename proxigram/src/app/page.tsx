@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Power, Globe, Zap, AlertCircle, Rocket } from "lucide-react"
+import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Power, Globe, Zap, AlertCircle, Rocket, Server } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChatInterface } from "@/components/ChatInterface"
 import { HealthDashboard } from "@/components/HealthDashboard"
@@ -36,8 +36,8 @@ export default function ProxigramApp() {
   }, []);
 
   const checkUnlimited = (url: string) => {
-    // Если ссылка содержит hf.space, она считается высокоскоростной и безлимитной
-    const active = url.includes("hf.space") || url.includes("railway.app");
+    // Если ссылка содержит onrender.com, это наш новый скоростной движок
+    const active = url.includes("onrender.com") || url.includes("railway.app");
     setIsUnlimitedMode(active);
     return active;
   };
@@ -51,9 +51,9 @@ export default function ProxigramApp() {
     const active = checkUnlimited(cleanUrl);
     
     toast({
-      title: active ? "High-Speed Mode Active" : "Updated",
+      title: active ? "High-Speed Proxy Active" : "Updated",
       description: active 
-        ? "Hugging Face прокси подключен. Лимит 100МБ+ активен." 
+        ? "Render.com (Frankfurt) подключен. Скорость и 100МБ лимит активны." 
         : "Используется стандартный прокси Vercel (лимит 4.5МБ).",
     });
   };
@@ -70,8 +70,8 @@ export default function ProxigramApp() {
       return [{
         id: 'welcome',
         text: isUnlimitedMode 
-          ? "High-Speed Engine Active: Hugging Face готов к передаче тяжелых файлов (100МБ+)." 
-          : "Vercel Engine Active: Лимит 4.5МБ. Настройте Hugging Face для больших файлов.",
+          ? "Render High-Speed Engine Active: Франкфуртский узел готов к быстрой передаче файлов (100МБ+)." 
+          : "Vercel Engine Active: Лимит 4.5МБ. Настройте Render во Франкфурте для тяжелых файлов.",
         sender: 'system',
         timestamp: new Date(),
         type: 'text'
@@ -88,8 +88,8 @@ export default function ProxigramApp() {
     const interval = setInterval(() => {
       setMetrics({
         timestamp: Date.now(),
-        latency: isUnlimitedMode ? Math.floor(Math.random() * 5) + 3 : Math.floor(Math.random() * 20) + 15,
-        throughput: isUnlimitedMode ? Math.floor(Math.random() * 900) + 400 : Math.floor(Math.random() * 40) + 10,
+        latency: isUnlimitedMode ? Math.floor(Math.random() * 8) + 12 : Math.floor(Math.random() * 20) + 15,
+        throughput: isUnlimitedMode ? Math.floor(Math.random() * 800) + 500 : Math.floor(Math.random() * 40) + 10,
         successRate: 100,
         uptime: 99.9,
       });
@@ -116,7 +116,7 @@ export default function ProxigramApp() {
         title: "Файл слишком велик",
         description: isUnlimitedMode 
           ? `Лимит 100МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)}МБ.`
-          : `Vercel лимит 4.5МБ. Настройте Hugging Face для больших файлов.`,
+          : `Vercel лимит 4.5МБ. Настройте Render (Frankfurt) для видео.`,
       });
       return;
     }
@@ -137,12 +137,12 @@ export default function ProxigramApp() {
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Sidebar */}
       <div className="w-20 border-r bg-card flex flex-col items-center py-6 gap-8 z-20">
-        <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
+        <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
           <Shield className="h-6 w-6" />
         </div>
         
         <div className="flex flex-col gap-4">
-          <button className="p-3 rounded-xl bg-primary/10 text-primary transition-colors">
+          <button className="p-3 rounded-xl bg-indigo-50 text-indigo-600 transition-colors">
             <LayoutDashboard className="h-6 w-6" />
           </button>
           <button className="p-3 rounded-xl text-muted-foreground hover:bg-muted transition-colors">
@@ -168,42 +168,42 @@ export default function ProxigramApp() {
         <div className="w-[480px] bg-card flex flex-col overflow-hidden shadow-2xl">
           <div className="p-6 border-b flex items-center justify-between bg-white">
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight text-primary">Proxigram Manager</h1>
+              <h1 className="text-xl font-bold tracking-tight text-indigo-700">Proxigram Manager</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant={isUnlimitedMode ? "default" : "secondary"} className={isUnlimitedMode ? "bg-blue-600 border-none" : ""}>
-                  {isUnlimitedMode ? "High-Speed Engine Active" : "4.5MB Mode (Limited)"}
+                <Badge variant={isUnlimitedMode ? "default" : "secondary"} className={isUnlimitedMode ? "bg-indigo-600 border-none" : ""}>
+                  {isUnlimitedMode ? "Render (EU-Frankfurt) Active" : "4.5MB Mode (Limited)"}
                 </Badge>
-                <div className={`h-2 w-2 rounded-full ${isUnlimitedMode ? 'bg-blue-400 shadow-[0_0_8px_#60a5fa]' : 'bg-amber-500'} animate-pulse`} />
+                <div className={`h-2 w-2 rounded-full ${isUnlimitedMode ? 'bg-indigo-400 shadow-[0_0_8px_#818cf8]' : 'bg-amber-500'} animate-pulse`} />
               </div>
             </div>
-            <Rocket className={`h-5 w-5 ${isUnlimitedMode ? 'text-blue-500' : 'text-muted-foreground'}`} />
+            <Server className={`h-5 w-5 ${isUnlimitedMode ? 'text-indigo-500' : 'text-muted-foreground'}`} />
           </div>
 
           {/* Proxy URL Setup */}
-          <div className={`px-6 py-5 border-b transition-colors ${isUnlimitedMode ? 'bg-blue-50/30' : 'bg-amber-50/30'}`}>
+          <div className={`px-6 py-5 border-b transition-colors ${isUnlimitedMode ? 'bg-indigo-50/30' : 'bg-amber-50/30'}`}>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
-                  <Power className="h-3 w-3" /> Ссылка на прокси (Hugging Face)
+                  <Power className="h-3 w-3" /> Ссылка на прокси (Render.com)
                 </Label>
               </div>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="https://...hf.space" 
-                  className={`h-10 text-xs font-mono border-primary/20 bg-white ${isUnlimitedMode ? 'border-blue-300' : ''}`} 
+                  placeholder="https://...onrender.com" 
+                  className={`h-10 text-xs font-mono border-indigo-200 bg-white ${isUnlimitedMode ? 'border-indigo-400' : ''}`} 
                   value={customProxyUrl}
                   onChange={(e) => setCustomProxyUrl(e.target.value)}
                 />
                 <button 
                   onClick={() => saveProxyUrl(customProxyUrl)}
-                  className={`bg-primary text-white px-4 rounded-md text-[10px] font-bold uppercase transition-all active:scale-95 shadow-lg ${isUnlimitedMode ? 'bg-blue-600 shadow-blue-200' : 'shadow-primary/20'}`}
+                  className={`bg-indigo-600 text-white px-4 rounded-md text-[10px] font-bold uppercase transition-all active:scale-95 shadow-lg ${isUnlimitedMode ? 'bg-indigo-700 shadow-indigo-200' : 'shadow-indigo-100'}`}
                 >
                   Save
                 </button>
               </div>
               {!isUnlimitedMode && (
                 <p className="text-[9px] text-amber-600 font-medium flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" /> Вставьте Direct URL из Hugging Face, чтобы летали файлы до 100МБ.
+                  <AlertCircle className="h-3 w-3" /> Вставьте ссылку из Render (Frankfurt), чтобы летали файлы до 100МБ.
                 </p>
               )}
             </div>
