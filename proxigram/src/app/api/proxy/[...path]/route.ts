@@ -47,7 +47,11 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
     
     let body: any = undefined;
     if (request.method === 'POST') {
-      body = await request.arrayBuffer();
+      try {
+        body = await request.arrayBuffer();
+      } catch (e) {
+        body = undefined;
+      }
     }
 
     const response = await fetch(telegramUrl, {
