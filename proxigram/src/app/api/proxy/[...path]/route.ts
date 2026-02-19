@@ -35,6 +35,7 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
     return NextResponse.json({ error: 'No path provided' }, { status: 400 });
   }
 
+  // Собираем путь (например, botTOKEN/getMe)
   const path = pathSegments.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
   const telegramUrl = `https://api.telegram.org/${path}${searchParams ? '?' + searchParams : ''}`;
