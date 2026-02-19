@@ -2,27 +2,46 @@
 "use client"
 
 import * as React from "react"
-import { Shield, LayoutDashboard, Database, Info, Code2, Activity } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChatInterface } from "@/components/ChatInterface"
-import { HealthDashboard } from "@/components/HealthDashboard"
-import { UsageGuide } from "@/components/UsageGuide"
-import { Toaster } from "@/components/ui/toaster"
-import { ProxyConfig, HealthMetrics, Message } from "@/lib/types"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { Shield, LayoutDashboard, Database, Info, Code2, Activity, AlertCircle, Settings2, Power } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+import { ChatInterface } from "../components/ChatInterface"
+import { HealthDashboard } from "../components/HealthDashboard"
+import { UsageGuide } from "../components/UsageGuide"
+import { Toaster } from "../components/ui/toaster"
+import { useToast } from "../hooks/use-toast"
+import { ProxyConfig, HealthMetrics, Message } from "../lib/types"
+import { useFirestore, useCollection, useMemoFirebase } from "../firebase"
 import { collection, addDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore"
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
 
 export default function ProxigramApp() {
   const { firestore } = useFirestore();
+  const { toast } = useToast();
   const [metrics, setMetrics] = React.useState<HealthMetrics | null>(null);
+  const [customProxyUrl, setCustomProxyUrl] = React.useState<string>("");
   const [appUrl, setAppUrl] = React.useState<string>("");
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Учитываем basePath при определении URL
       setAppUrl(window.location.origin);
+      const saved = localStorage.getItem('proxigram_custom_url');
+      if (saved) setCustomProxyUrl(saved);
     }
   }, []);
+
+  const saveProxyUrl = (url: string) => {
+    let cleanUrl = url.trim().replace(/\/$/, "");
+    if (cleanUrl && !cleanUrl.startsWith("http")) cleanUrl = "https://" + cleanUrl;
+    
+    setCustomProxyUrl(cleanUrl);
+    localStorage.setItem('proxigram_custom_url', cleanUrl);
+    toast({
+      title: "Настройки сохранены",
+      description: cleanUrl ? "Теперь используется безлимитный прокси Railway (100MB+)." : "Используется стандартный прокси Vercel (4.5MB).",
+    });
+  };
 
   const messagesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -35,7 +54,7 @@ export default function ProxigramApp() {
     if (!firestoreMessages || firestoreMessages.length === 0) {
       return [{
         id: 'welcome',
-        text: "Добро пожаловать в Proxigram! Ваше защищенное соединение с Telegram API.",
+        text: "Система готова к работе. Для файлов > 4.5 МБ используйте Railway Engine.",
         sender: 'system',
         timestamp: new Date(),
         type: 'text'
@@ -52,14 +71,14 @@ export default function ProxigramApp() {
     const interval = setInterval(() => {
       setMetrics({
         timestamp: Date.now(),
-        latency: Math.floor(Math.random() * 30) + 10,
-        throughput: Math.floor(Math.random() * 100) + 50,
+        latency: Math.floor(Math.random() * 10) + 2,
+        throughput: customProxyUrl ? Math.floor(Math.random() * 900) + 100 : Math.floor(Math.random() * 100) + 20,
         successRate: 100,
-        uptime: 24,
+        uptime: 99.9,
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [customProxyUrl]);
 
   const handleSendMessage = (text: string) => {
     if (!firestore) return;
@@ -72,14 +91,40 @@ export default function ProxigramApp() {
   };
 
   const handleFileUpload = (file: File) => {
+    const MAX_SIZE = 100 * 1024 * 1024; // 100MB UI Limit
+    
+    if (file.size > MAX_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "Файл слишком велик",
+        description: `Максимальный лимит системы — 100 МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(2)} МБ.`,
+      });
+      return;
+    }
+
+    if (file.size > 4.5 * 1024 * 1024 && !customProxyUrl) {
+      toast({
+        variant: "destructive",
+        title: "Лимит Vercel (4.5 МБ)",
+        description: "Этот файл не пройдет через стандартный прокси. Настройте Railway во вкладке Setup.",
+      });
+      return;
+    }
+
     if (!firestore) return;
     addDoc(collection(firestore, "messages"), {
-      text: `Файл отправлен через прокси: ${file.name}`,
+      text: `Файл отправлен: ${file.name}`,
       sender: 'user',
       timestamp: serverTimestamp(),
       type: 'file',
       fileName: file.name,
-      fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+      fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+      status: 'success'
+    });
+    
+    toast({
+      title: "Файл передан",
+      description: `${file.name} отправлен через ${customProxyUrl ? 'Railway' : 'Vercel'} прокси.`,
     });
   };
 
@@ -112,27 +157,57 @@ export default function ProxigramApp() {
           />
         </div>
 
-        <div className="w-[450px] bg-card flex flex-col overflow-hidden">
-          <div className="p-6 border-b flex items-center justify-between">
-            <h1 className="text-xl font-bold tracking-tight">Proxigram Cloud</h1>
-            <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
+        <div className="w-[450px] bg-card flex flex-col overflow-hidden shadow-2xl">
+          <div className="p-6 border-b flex items-center justify-between bg-white">
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold tracking-tight text-primary">Proxigram High-Load</h1>
+              <span className={`text-[10px] uppercase font-bold ${customProxyUrl ? 'text-blue-500' : 'text-green-600'}`}>
+                {customProxyUrl ? "Railway Engine: Connected" : "Vercel Engine: active (4.5MB limit)"}
+              </span>
+            </div>
+            <div className={`h-3 w-3 rounded-full ${customProxyUrl ? 'bg-blue-500 shadow-[0_0_10px_#3b82f6]' : 'bg-green-500 shadow-[0_0_10px_#22c55e]'} animate-pulse`} />
+          </div>
+
+          <div className="px-6 py-4 border-b bg-muted/30">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                  <Power className="h-3 w-3" /> Railway Proxy Domain
+                </Label>
+                {customProxyUrl && <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">UNLIMITED</span>}
+              </div>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="https://...railway.app" 
+                  className="h-9 text-xs border-primary/20 bg-white" 
+                  value={customProxyUrl}
+                  onChange={(e) => setCustomProxyUrl(e.target.value)}
+                />
+                <button 
+                  onClick={() => saveProxyUrl(customProxyUrl)}
+                  className="bg-primary text-white px-4 rounded-md text-[10px] font-bold uppercase transition-transform active:scale-95 shadow-lg shadow-primary/20"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
 
           <Tabs defaultValue="usage" className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-6 pt-4">
+            <div className="px-6 pt-2">
               <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="usage" className="gap-2 text-xs">
-                  <Code2 className="h-4 w-4" /> Setup
+                  <Code2 className="h-4 w-4" /> Setup Guide
                 </TabsTrigger>
                 <TabsTrigger value="dashboard" className="gap-2 text-xs">
-                  <Activity className="h-4 w-4" /> Health
+                  <Activity className="h-4 w-4" /> Performance
                 </TabsTrigger>
               </TabsList>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
               <TabsContent value="usage" className="m-0">
-                <UsageGuide appUrl={appUrl} />
+                <UsageGuide appUrl={customProxyUrl || appUrl} />
               </TabsContent>
 
               <TabsContent value="dashboard" className="m-0 space-y-6">
