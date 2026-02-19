@@ -2,7 +2,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* Базовый путь для работы в подпапке вашего основного домена */
+  /* Базовый путь для работы в подпаке вашего основного домена */
   basePath: '/proxigram',
   /* ВАЖНО: Мы убираем output: 'export', так как Vercel должен запустить сервер для прокси */
   typescript: {
