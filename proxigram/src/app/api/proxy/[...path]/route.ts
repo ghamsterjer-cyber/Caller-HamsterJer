@@ -2,7 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
+/**
+ * Оптимизированный прокси с поддержкой высокоскоростного стриминга.
+ * На Railway этот код будет пропускать до 100МБ+ без ограничений.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -41,26 +46,29 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
 
   try {
     const forwardHeaders = new Headers();
-    const contentType = request.headers.get('content-type');
-    if (contentType) forwardHeaders.set('content-type', contentType);
+    const headersToForward = ['content-type', 'content-length', 'authorization'];
     
-    let body: any = undefined;
-    if (request.method === 'POST') {
-      try {
-        body = await request.arrayBuffer();
-      } catch (e) {
-        body = undefined;
-      }
+    headersToForward.forEach(header => {
+      const value = request.headers.get(header);
+      if (value) forwardHeaders.set(header, value);
+    });
+
+    // Оптимизированная передача тела запроса для тяжелых файлов (видео/аудио)
+    let requestBody: any = null;
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      // Используем стрим напрямую для минимизации потребления RAM на Railway
+      requestBody = request.body;
     }
 
     const response = await fetch(telegramUrl, {
       method: request.method,
       headers: forwardHeaders,
-      body: body,
+      body: requestBody,
       cache: 'no-store',
+      // @ts-ignore - необходимо для Node.js среды в Railway
+      duplex: 'half',
     });
 
-    const data = await response.arrayBuffer();
     const responseHeaders = new Headers();
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     
@@ -69,11 +77,17 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
       responseHeaders.set('content-type', respContentType);
     }
 
-    return new NextResponse(data, {
+    // Возвращаем поток (stream) напрямую пользователю
+    return new NextResponse(response.body, {
       status: response.status,
       headers: responseHeaders,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('High-Load Proxy Error:', error);
+    return NextResponse.json({ 
+      error: 'Proxy Transfer Failed', 
+      message: error.message,
+      hint: 'Если файл > 4.5MB, убедитесь что вы используете домен Railway, а не Vercel.'
+    }, { status: 500 });
   }
 }
