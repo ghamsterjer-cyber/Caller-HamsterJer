@@ -29,5 +29,3 @@ export function useToast() {
 
   return { toasts, toast, dismiss: (id?: string) => setToasts((prev) => id ? prev.filter(t => t.id !== id) : []) }
 }
-
-export const toast = (...args: any[]) => { console.log("Toast called", args) }
