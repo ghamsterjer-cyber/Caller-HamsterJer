@@ -17,36 +17,9 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: "Скопировано", description: "Код для Vercel прокси скопирован." });
+    toast({ title: "Скопировано", description: "Адрес прокси скопирован." });
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const vercelProxyCode = `// 1. Создайте в Vercel новый проект из вашего GitHub
-// 2. В папке /proxigram/src/app/api/proxy/route.ts уже лежит этот код.
-// 3. Vercel сам запустит его как Serverless Function.
-
-// Если вы хотите создать отдельный мини-прокси, используйте этот JS:
-export default async function handler(req, res) {
-  const { path } = req.query;
-  const pathString = Array.isArray(path) ? path.join('/') : path;
-  const searchParams = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
-  const telegramUrl = \`https://api.telegram.org/\${pathString}\${searchParams}\`;
-
-  try {
-    const response = await fetch(telegramUrl, {
-      method: req.method,
-      headers: { 'Content-Type': 'application/json' },
-      body: req.method === 'POST' ? JSON.stringify(req.body) : null,
-    });
-
-    const data = await response.json();
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.status(response.status).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}`;
 
   return (
     <div className="space-y-6">
@@ -54,7 +27,7 @@ export default async function handler(req, res) {
         <AlertTriangle className="h-4 w-4 text-destructive" />
         <AlertTitle className="text-destructive font-bold">Ограничение тарифа Spark</AlertTitle>
         <AlertDescription className="text-xs">
-          На бесплатном тарифе Firebase нельзя запускать серверный код. Мы используем <strong>Vercel</strong> (он работает в РФ и бесплатен) для связи с Telegram API.
+          Firebase Hosting (Spark) не поддерживает серверные функции. Ваш прокси будет работать через <strong>Vercel</strong>.
         </AlertDescription>
       </Alert>
 
@@ -63,41 +36,30 @@ export default async function handler(req, res) {
           <Zap className="h-4 w-4 text-primary" /> Шаг 1: Деплой на Vercel
         </h3>
         <p className="text-xs text-muted-foreground">
-          Вы уже связали GitHub! Теперь просто импортируйте репозиторий в Vercel, выберите папку <code>proxigram</code> как корневую и нажмите Deploy.
+          Вы уже связали GitHub! В Vercel выберите папку <code>proxigram</code> как корневую и нажмите Deploy. 
+          Vercel автоматически создаст сервер для файла <code>api/proxy</code>.
         </p>
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold flex items-center gap-2">
-          <Code2 className="h-4 w-4 text-primary" /> Шаг 2: Код прокси
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Если вы создаете прокси отдельно, используйте этот код в файле <code>api/proxy.js</code>:
-        </p>
-        <div className="relative group">
-          <pre className="p-4 rounded-lg bg-slate-950 text-slate-50 text-[10px] font-mono overflow-x-auto leading-relaxed">
-            {vercelProxyCode}
-          </pre>
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            className="absolute top-2 right-2 text-white hover:bg-white/10"
-            onClick={() => copyToClipboard(vercelProxyCode)}
-          >
-            {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-          </Button>
-        </div>
       </div>
 
       <div className="p-4 border rounded-xl bg-primary/5 space-y-3">
         <h3 className="text-sm font-bold flex items-center gap-2">
-          <Info className="h-4 w-4 text-primary" /> Шаг 3: Ваш URL
+          <Info className="h-4 w-4 text-primary" /> Шаг 2: Ваш URL
         </h3>
         <p className="text-xs">
-          После деплоя ваш адрес для запросов будет:
+          После деплоя ваш адрес для запросов к боту будет выглядеть так:
         </p>
-        <div className="text-[10px] font-mono bg-white p-2 border rounded break-all">
-          https://ВАШ-ПРОЕКТ.vercel.app/api/proxy?path=botTOKEN/getMe
+        <div className="relative">
+          <div className="text-[10px] font-mono bg-white p-3 pr-10 border rounded break-all">
+            https://ВАШ-ПРОЕКТ.vercel.app/api/proxy/botTOKEN/getMe
+          </div>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="absolute top-1 right-1 h-7 w-7"
+            onClick={() => copyToClipboard("https://ВАШ-ПРОЕКТ.vercel.app/api/proxy/")}
+          >
+            {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+          </Button>
         </div>
       </div>
 
