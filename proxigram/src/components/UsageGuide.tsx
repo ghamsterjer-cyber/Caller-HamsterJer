@@ -23,86 +23,91 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const finalProxyUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/api/proxy/` : "";
   const isRailway = appUrl?.includes("railway.app");
+  const finalProxyUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/api/proxy/` : "";
+  
+  // Пример кода для бота
+  const exampleCode = `// Пример использования в вашем коде:
+const PROXY = "${finalProxyUrl}";
+const TOKEN = "ВАШ_ТОКЕН_БОТА";
+const url = \`\${PROXY}bot\${TOKEN}/sendAudio\`;`;
 
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h3 className="text-sm font-bold flex items-center gap-2">
-          <Zap className={`h-4 w-4 ${isRailway ? 'text-blue-500' : 'text-primary'}`} /> 
-          {isRailway ? 'Ваш High-Load Proxy Endpoint' : 'Ваш стандартный Endpoint'}
-        </h3>
-        <div className="relative">
-          <div className={`text-[10px] font-mono p-4 pr-12 border rounded-xl break-all leading-relaxed shadow-inner ${isRailway ? 'bg-blue-50/50 text-blue-700 border-blue-200 font-bold' : 'bg-white text-muted-foreground border-primary/20'}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <Zap className={`h-4 w-4 ${isRailway ? 'text-blue-500' : 'text-primary'}`} /> 
+            Основной Endpoint для бота
+          </h3>
+          {isRailway && (
+            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold animate-pulse">
+              UNLIMITED 100MB+
+            </span>
+          )}
+        </div>
+        
+        <div className="relative group">
+          <div className={`text-[11px] font-mono p-4 pr-12 border rounded-xl break-all leading-relaxed shadow-inner transition-colors ${
+            isRailway 
+            ? 'bg-blue-50/80 text-blue-700 border-blue-200 ring-2 ring-blue-100' 
+            : 'bg-white text-muted-foreground border-primary/20'
+          }`}>
             {finalProxyUrl || "Ожидание настройки..."}
           </div>
           <Button 
             size="icon" 
             variant="ghost" 
-            className="absolute top-2 right-2 h-8 w-8 hover:bg-white"
+            className="absolute top-2 right-2 h-8 w-8 hover:bg-white shadow-sm border"
             disabled={!finalProxyUrl}
             onClick={() => copyToClipboard(finalProxyUrl, 'current')}
           >
-            {copied === 'current' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
+            {copied === 'current' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground leading-relaxed px-1">
+        
+        <p className="text-[10px] text-muted-foreground leading-relaxed px-1 italic">
           {isRailway 
-            ? "Используйте этот URL в ваших ботах. Railway пропустит файлы до 100МБ." 
-            : "Этот URL имеет лимит 4.5МБ. Для видео используйте домен Railway."}
+            ? "✓ Используйте эту ссылку. Railway пропустит файлы до 100МБ." 
+            : "⚠ Эта ссылка ограничена 4.5МБ (Vercel). Для видео нужен домен Railway."}
         </p>
       </div>
 
-      {isRailway ? (
-        <Alert className="bg-green-50 border-green-200">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-          <AlertTitle className="text-green-800 text-xs font-bold">Railway Подключен!</AlertTitle>
-          <AlertDescription className="text-green-700 text-[10px]">
-            Система работает в безлимитном режиме. Ваши аудио и видео теперь будут передаваться без ошибок 404.
+      <div className="relative">
+        <div className="absolute top-2 left-4 text-[9px] font-bold text-muted-foreground uppercase">Код для вставки в бота:</div>
+        <pre className="p-4 pt-8 bg-slate-900 text-slate-300 rounded-xl text-[10px] font-mono overflow-x-auto border border-slate-800">
+          {exampleCode}
+        </pre>
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="absolute top-2 right-2 h-6 w-6 text-slate-500 hover:text-white"
+          onClick={() => copyToClipboard(exampleCode, 'code')}
+        >
+          {copied === 'code' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        </Button>
+      </div>
+
+      {!isRailway && (
+        <Alert className="bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 text-xs font-bold uppercase">Внимание: Лимит 4.5МБ</AlertTitle>
+          <AlertDescription className="text-amber-700 text-[10px] leading-tight mt-1">
+            Вы используете прокси через Vercel. Тяжелые файлы будут выдавать ошибку 413 или 404. 
+            <strong> Подключите Railway</strong> во вкладке сверху для снятия лимитов.
           </AlertDescription>
         </Alert>
-      ) : (
-        <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-xl space-y-3">
-          <h4 className="text-xs font-bold text-blue-700 flex items-center gap-2">
-            <Network className="h-4 w-4" /> Лимит 4.5МБ Активен
-          </h4>
-          <p className="text-[10px] text-blue-600 leading-tight">
-            Чтобы отправлять файлы > 4.5МБ, вставьте полученный домен от Railway в поле сверху.
-          </p>
-        </div>
       )}
 
       <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value="railway-steps" className="border-primary/20 bg-muted/20 px-4 rounded-xl">
-          <AccordionTrigger className="text-primary hover:no-underline py-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase">
-              <HelpCircle className="h-4 w-4" /> 
-              Как обновить Railway?
-            </div>
+        <AccordionItem value="help" className="border-none bg-muted/30 px-4 rounded-xl">
+          <AccordionTrigger className="text-muted-foreground hover:no-underline py-3 text-xs">
+            Как это работает?
           </AccordionTrigger>
-          <AccordionContent className="space-y-4 pb-4">
-            <div className="space-y-3 text-[11px] text-muted-foreground leading-relaxed">
-              <p>Если прокси перестал работать:</p>
-              <div className="flex gap-2">
-                <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-[10px]">1</div>
-                <p>Проверьте вкладку <strong>Variables</strong> в Railway. Там должно быть: <code>RAILWAY_ROOT_DIRECTORY = proxigram</code></p>
-              </div>
-              <div className="flex gap-2">
-                <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-[10px]">2</div>
-                <p>Проверьте <strong>Networking</strong>. Port должен быть <code>3000</code>.</p>
-              </div>
-            </div>
-            
-            <Button 
-              asChild 
-              variant="outline"
-              className="w-full h-8 text-[10px] font-bold uppercase"
-            >
-              <a href="https://railway.app" target="_blank">
-                Railway Dashboard <ExternalLink className="h-3 w-3 ml-2" />
-              </a>
-            </Button>
+          <AccordionContent className="text-[10px] text-muted-foreground space-y-2 pb-4 leading-relaxed">
+            <p>1. <strong>Vercel (UI)</strong>: Красивая оболочка, которую вы видите сейчас.</p>
+            <p>2. <strong>Railway (Engine)</strong>: Мощный сервер, который пересылает данные без ограничений.</p>
+            <p>Когда вы вставляете ссылку Railway в своего бота, данные идут напрямую через мощный сервер, минуя ограничения Vercel.</p>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
