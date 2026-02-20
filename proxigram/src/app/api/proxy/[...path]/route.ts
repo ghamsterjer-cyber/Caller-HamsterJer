@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Оптимизированный внутренний прокси на базе Edge Runtime.
  * Позволяет передавать файлы до 32 МБ с максимальной скоростью Vercel.
+ * Ссылка: /api/proxy/bot<TOKEN>/...
  */
 export async function GET(
   request: NextRequest,
@@ -53,12 +54,13 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
     });
 
     // Оптимизированная передача тела запроса (Streaming)
+    // Edge Runtime позволяет передавать потоки напрямую
     const response = await fetch(telegramUrl, {
       method: request.method,
       headers: forwardHeaders,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       cache: 'no-store',
-      // @ts-ignore
+      // @ts-ignore - необходимо для стриминга в Edge Runtime
       duplex: 'half',
     });
 
@@ -70,7 +72,7 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
       responseHeaders.set('content-type', respContentType);
     }
 
-    // Возвращаем поток напрямую пользователю
+    // Возвращаем поток напрямую пользователю для экономии памяти и времени
     return new NextResponse(response.body, {
       status: response.status,
       headers: responseHeaders,
