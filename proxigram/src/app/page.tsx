@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Power, Zap, AlertCircle, Rocket } from "lucide-react"
+import { Shield, LayoutDashboard, Database, Info, Code2, Activity, Rocket } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChatInterface } from "@/components/ChatInterface"
 import { HealthDashboard } from "@/components/HealthDashboard"
@@ -88,8 +88,8 @@ export default function ProxigramApp() {
     if (file.size > EDGE_LIMIT) {
       toast({
         variant: "destructive",
-        title: "Лимит Edge прокси",
-        description: "Vercel Edge ограничивает запросы до 32МБ.",
+        title: "Лимит Vercel Edge",
+        description: "Vercel ограничивает Edge-запросы до 32МБ. Файл слишком велик для прокси.",
       });
       return;
     }
@@ -152,7 +152,7 @@ export default function ProxigramApp() {
           <div className="px-6 py-4 bg-blue-50/30 border-b">
             <p className="text-[10px] text-blue-700 font-medium leading-tight">
               Используется встроенный Edge-движок. Срок действия: <b>Бессрочно</b>. 
-              Никаких внешних ссылок и настроек не требуется.
+              Никаких внешних ссылок не требуется. Лимит: 32 МБ.
             </p>
           </div>
 
