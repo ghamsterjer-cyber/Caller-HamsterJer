@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Vercel Edge Engine Proxy
- * Limit: 32MB (Max for Edge Runtime)
- * Speed: Maximum (Direct streaming)
+ * Лимит: 32МБ (Максимум для Edge Runtime)
+ * Скорость: Максимальная (Прямой стриминг без буферизации)
  */
 
 export const runtime = 'edge';
@@ -41,6 +41,7 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
 
   try {
     const forwardHeaders = new Headers();
+    // Копируем критически важные заголовки для Telegram
     ['content-type', 'authorization', 'accept', 'content-length'].forEach(h => {
       const v = request.headers.get(h);
       if (v) forwardHeaders.set(h, v);
@@ -49,9 +50,10 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
     const response = await fetch(telegramUrl, {
       method: request.method,
       headers: forwardHeaders,
+      // Передаем тело запроса как поток (stream)
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       cache: 'no-store',
-      // @ts-ignore
+      // @ts-ignore - необходимо для стриминга в Edge среде
       duplex: 'half',
     });
 
@@ -63,11 +65,13 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
       responseHeaders.set('content-type', respContentType);
     }
 
+    // Возвращаем поток напрямую пользователю (Streaming)
     return new NextResponse(response.body, {
       status: response.status,
       headers: responseHeaders,
     });
   } catch (error: any) {
+    console.error('Edge Proxy Error:', error);
     return NextResponse.json({ 
       error: 'Proxy Failed', 
       message: error.message 
