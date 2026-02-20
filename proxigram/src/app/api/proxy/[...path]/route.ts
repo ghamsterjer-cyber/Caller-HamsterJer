@@ -1,12 +1,11 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge'; // Использование Edge Runtime для обхода лимита 4.5МБ
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
 
 /**
- * Оптимизированный прокси с поддержкой высокоскоростного стриминга.
- * На Railway этот код будет пропускать до 100МБ+ без ограничений.
+ * Оптимизированный внутренний прокси на базе Edge Runtime.
+ * Позволяет передавать файлы до 32 МБ с максимальной скоростью Vercel.
  */
 export async function GET(
   request: NextRequest,
@@ -46,26 +45,20 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
 
   try {
     const forwardHeaders = new Headers();
-    const headersToForward = ['content-type', 'content-length', 'authorization'];
+    const headersToForward = ['content-type', 'authorization', 'x-requested-with'];
     
     headersToForward.forEach(header => {
       const value = request.headers.get(header);
       if (value) forwardHeaders.set(header, value);
     });
 
-    // Оптимизированная передача тела запроса для тяжелых файлов (видео/аудио)
-    let requestBody: any = null;
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      // Используем стрим напрямую для минимизации потребления RAM на Railway
-      requestBody = request.body;
-    }
-
+    // Оптимизированная передача тела запроса (Streaming)
     const response = await fetch(telegramUrl, {
       method: request.method,
       headers: forwardHeaders,
-      body: requestBody,
+      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       cache: 'no-store',
-      // @ts-ignore - необходимо для Node.js среды в Railway
+      // @ts-ignore
       duplex: 'half',
     });
 
@@ -77,17 +70,16 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
       responseHeaders.set('content-type', respContentType);
     }
 
-    // Возвращаем поток (stream) напрямую пользователю
+    // Возвращаем поток напрямую пользователю
     return new NextResponse(response.body, {
       status: response.status,
       headers: responseHeaders,
     });
   } catch (error: any) {
-    console.error('High-Load Proxy Error:', error);
+    console.error('Edge Proxy Error:', error);
     return NextResponse.json({ 
       error: 'Proxy Transfer Failed', 
-      message: error.message,
-      hint: 'Если файл > 4.5MB, убедитесь что вы используете домен Railway, а не Vercel.'
+      message: error.message 
     }, { status: 500 });
   }
 }
