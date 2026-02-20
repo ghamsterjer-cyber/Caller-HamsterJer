@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Copy, Check, Zap, Rocket, ShieldCheck, Globe, Info, AlertTriangle } from "lucide-react"
+import { Copy, Zap, Rocket, ShieldCheck, Globe, Info, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -34,19 +34,19 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
 
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-800 font-bold uppercase text-[10px]">Преимущества этого метода:</AlertTitle>
+          <AlertTitle className="text-blue-800 font-bold uppercase text-[10px]">Ваш проект теперь на Edge:</AlertTitle>
           <AlertDescription className="text-blue-700 text-[10px] leading-tight space-y-2 mt-1">
-            <p>1. <b>Бессрочно</b>: Работает пока жив ваш проект на Vercel.</p>
-            <p>2. <b>Скорость</b>: Использует Edge-узлы по всему миру (летает в РФ).</p>
-            <p>3. <b>Лимит 32МБ</b>: Мы увеличили стандартный лимит Vercel в 8 раз.</p>
+            <p>1. <b>Бессрочно</b>: Этот прокси — часть вашего кода. Он работает всегда.</p>
+            <p>2. <b>Скорость</b>: Vercel Edge «летает», так как трафик идет через ближайшие к вам узлы.</p>
+            <p>3. <b>Лимит 32 МБ</b>: Это максимум, который позволяет Vercel бесплатно. Этого хватит для большинства файлов.</p>
           </AlertDescription>
         </Alert>
 
         <Alert className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800 font-bold uppercase text-[10px]">Важное ограничение Telegram:</AlertTitle>
+          <AlertTitle className="text-amber-800 font-bold uppercase text-[10px]">Важное напоминание:</AlertTitle>
           <AlertDescription className="text-amber-700 text-[10px] leading-tight mt-1">
-            Сам Telegram запрещает загружать файлы больше <b>50 МБ</b> через ботов. Файл 76 МБ не примет ни один прокси.
+            Сам Telegram запрещает загрузку файлов более <b>50 МБ</b> через Bot API. Любой файл 76 МБ не примет сам Telegram.
           </AlertDescription>
         </Alert>
       </div>
@@ -68,11 +68,11 @@ export function UsageGuide({ appUrl }: UsageGuideProps) {
             disabled={!finalProxyUrl}
             onClick={() => copyToClipboard(finalProxyUrl, 'current')}
           >
-            {copied === 'current' ? <Check className="h-4 w-4 text-green-500" /> : <Globe className="h-4 w-4" />}
+            {copied === 'current' ? <Rocket className="h-4 w-4 text-green-500" /> : <Globe className="h-4 w-4" />}
           </Button>
         </div>
         <p className="text-[9px] text-muted-foreground italic">
-          Используйте эту ссылку в вашем приложении. Она вшита навсегда и не требует внешних сервисов.
+          Эту ссылку вставьте в настройки вашего бота. Она будет работать всегда и очень быстро.
         </p>
       </div>
     </div>
