@@ -41,7 +41,6 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
 
   try {
     const forwardHeaders = new Headers();
-    // Копируем критически важные заголовки для Telegram
     ['content-type', 'authorization', 'accept', 'content-length'].forEach(h => {
       const v = request.headers.get(h);
       if (v) forwardHeaders.set(h, v);
@@ -50,10 +49,9 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
     const response = await fetch(telegramUrl, {
       method: request.method,
       headers: forwardHeaders,
-      // Передаем тело запроса как поток (stream)
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       cache: 'no-store',
-      // @ts-ignore - необходимо для стриминга в Edge среде
+      // @ts-ignore
       duplex: 'half',
     });
 
@@ -65,7 +63,6 @@ async function handleRequest(request: NextRequest, pathSegments: string[]) {
       responseHeaders.set('content-type', respContentType);
     }
 
-    // Возвращаем поток напрямую пользователю (Streaming)
     return new NextResponse(response.body, {
       status: response.status,
       headers: responseHeaders,
