@@ -72,6 +72,8 @@ const iceServers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: "stun:stun.services.mozilla.com" },
+    { urls: "stun:stun.stunprotocol.org:3478" },
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelay",
@@ -117,15 +119,12 @@ export default function WebRTCCaller() {
         localStorage.setItem('webrtc-tutorial-shown', 'true');
       }
       
-      const ringtone = new Audio(RINGTONE_PATH);
-      ringtone.loop = true;
-      ringingAudioRef.current = ringtone;
-
-      const disconnectTone = new Audio(DISCONNECT_TONE_PATH);
-      disconnectAudioRef.current = disconnectTone;
-
-      ringtone.load();
-      disconnectTone.load();
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.load();
+      }
+      if (disconnectAudioRef.current) {
+        disconnectAudioRef.current.load();
+      }
   }, []);
 
   const addLog = useCallback((message: string) => {
@@ -540,12 +539,18 @@ export default function WebRTCCaller() {
   return (
     <>
       <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} steps={tutorialSteps} />
+      <audio ref={ringingAudioRef} loop>
+        <source src={RINGTONE_PATH} type="audio/mpeg" />
+      </audio>
+      <audio ref={disconnectAudioRef}>
+        <source src={DISCONNECT_TONE_PATH} type="audio/mpeg" />
+      </audio>
       <div className="w-full max-w-2xl mx-auto space-y-4">
         <Card className="w-full shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-headline flex items-center gap-2">
-                <Share2 className="text-primary cursor-pointer" onClick={handleLogoClick}/> HJWebRTC Звонилка
+                <Share2 className="text-primary cursor-pointer" onClick={handleLogoClick}/> HJWebRTC Звонилка v1.2
               </CardTitle>
               <Button variant="ghost" size="icon" onClick={() => setShowTutorial(true)}>
                 <Info className="h-5 w-5" />
@@ -576,7 +581,7 @@ export default function WebRTCCaller() {
               <div className="flex items-center">{icon}<AlertTitle className="ml-2">{title}</AlertTitle></div>
               <AlertDescription>{desc}</AlertDescription>
             </Alert>
-            <audio ref={remoteAudioRef} playsInline style={{ position: 'absolute', top: '-9999px', left: '-9999px' }} />
+            <audio ref={remoteAudioRef} playsInline style={{ display: 'none' }} />
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2">
             {callState === "idle" && (
@@ -617,5 +622,4 @@ export default function WebRTCCaller() {
     </>
   );
 }
-
-    
+ 
