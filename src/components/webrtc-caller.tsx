@@ -68,15 +68,10 @@ const tutorialSteps: TutorialStep[] = [
     },
 ];
 
-// Добавлен TURN-сервер для повышения надежности соединения
 const iceServers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:stun.services.mozilla.com' },
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelay",
@@ -98,7 +93,6 @@ export default function WebRTCCaller() {
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
 
-
   const { toast } = useToast();
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -111,7 +105,6 @@ export default function WebRTCCaller() {
   
   const isAnswerSetRef = useRef(false);
   const pendingCandidatesRef = useRef<RTCIceCandidate[]>([]);
-
 
   useEffect(() => {
     callStateRef.current = callState;
@@ -131,7 +124,6 @@ export default function WebRTCCaller() {
       const disconnectTone = new Audio(DISCONNECT_TONE_PATH);
       disconnectAudioRef.current = disconnectTone;
 
-      // Preload audio
       ringtone.load();
       disconnectTone.load();
   }, []);
@@ -211,7 +203,6 @@ export default function WebRTCCaller() {
       await cleanup(false);
   }, [cleanup]);
 
-
   const setAudioOutputToEarpiece = useCallback(async () => {
     if (!remoteAudioRef.current) {
         addLog('Remote audio element not ready.');
@@ -265,10 +256,28 @@ export default function WebRTCCaller() {
       };
 
       pc.ontrack = (event) => {
-        addLog("Получен удаленный медиапоток.");
-        if (event.streams && event.streams[0] && remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = event.streams[0];
-          remoteAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения аудио: ${e.message}`));
+        addLog("Получен удаленный медиапоток (ontrack).");
+        if (remoteAudioRef.current && event.streams && event.streams[0]) {
+            addLog("Аудио элемент и поток существуют. Присваиваю поток...");
+            remoteAudioRef.current.srcObject = event.streams[0];
+            
+            addLog("Вызываю .play() для аудио элемента.");
+            const playPromise = remoteAudioRef.current.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    addLog("Воспроизведение успешно начато (promise resolved).");
+                }).catch(error => {
+                    addLog(`!!! ОШИБКА ВОСПРОИЗВЕДЕНИЯ: ${error}. Браузер заблокировал авто-воспроизведение.`);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Звук заблокирован',
+                        description: 'Нажмите на экран, чтобы включить звук.',
+                    });
+                });
+            }
+        } else {
+            addLog("ontrack сработал, но аудио элемент или поток отсутствуют.");
         }
       };
 
@@ -567,7 +576,7 @@ export default function WebRTCCaller() {
               <div className="flex items-center">{icon}<AlertTitle className="ml-2">{title}</AlertTitle></div>
               <AlertDescription>{desc}</AlertDescription>
             </Alert>
-            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+            <audio ref={remoteAudioRef} playsInline style={{ position: 'absolute', top: '-9999px', left: '-9999px' }} />
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2">
             {callState === "idle" && (
@@ -608,3 +617,5 @@ export default function WebRTCCaller() {
     </>
   );
 }
+
+    
