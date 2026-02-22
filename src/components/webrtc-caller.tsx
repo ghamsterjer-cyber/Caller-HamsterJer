@@ -525,8 +525,8 @@ export default function WebRTCCaller() {
     <>
       <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} steps={tutorialSteps} />
       <div className="w-full max-w-2xl mx-auto space-y-4">
-        <audio ref={ringingAudioRef} src={RINGTONE_PATH} loop playsInline preload="auto" style={{ display: "none" }} />
-        <audio ref={disconnectAudioRef} src={DISCONNECT_TONE_PATH} playsInline preload="auto" style={{ display: "none" }} />
+        <audio ref={ringingAudioRef} src={RINGTONE_PATH} loop playsInline preload="auto" />
+        <audio ref={disconnectAudioRef} src={DISCONNECT_TONE_PATH} playsInline preload="auto" />
         <Card className="w-full shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -603,5 +603,7 @@ export default function WebRTCCaller() {
     </>
   );
 }
+
+    
 
     
