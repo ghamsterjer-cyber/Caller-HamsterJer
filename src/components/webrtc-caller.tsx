@@ -70,15 +70,12 @@ const tutorialSteps: TutorialStep[] = [
 
 const iceServers = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun.services.mozilla.com" },
-    { urls: "stun:stun.stunprotocol.org:3478" },
-    { urls: "stun:stun.voiparound.com" },
-    { urls: "stun:stun.voipbuster.com" },
-    { urls: "stun:stun.voipstunt.com" },
-    { urls: "stun:stun.xten.com" },
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.services.mozilla.com' },
   ],
 };
 
@@ -101,6 +98,7 @@ export default function WebRTCCaller() {
   const firebaseListenersRef = useRef<Array<{ path: string; type: any }>>([]);
   const isInitiatorRef = useRef(false);
   const callStateRef = useRef(callState);
+  const candidateBufferRef = useRef<RTCIceCandidate[]>([]);
 
   useEffect(() => {
     callStateRef.current = callState;
@@ -113,7 +111,6 @@ export default function WebRTCCaller() {
         localStorage.setItem('webrtc-tutorial-shown', 'true');
       }
       
-      // Preload audio files when component mounts
       if (ringingAudioRef.current) {
         ringingAudioRef.current.load();
       }
@@ -178,6 +175,7 @@ export default function WebRTCCaller() {
     }
     
     isInitiatorRef.current = false;
+    candidateBufferRef.current = [];
     setCallState("idle");
     toast({ title: "Вызов завершен", description: "Вы можете начать новый вызов." });
   }, [addLog, toast]);
@@ -356,6 +354,15 @@ export default function WebRTCCaller() {
             addLog("Получен Answer.");
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(roomData.answer));
+              addLog("Remote description (Answer) успешно установлен.");
+              if (candidateBufferRef.current.length > 0) {
+                  addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов...`);
+                  for (const candidate of candidateBufferRef.current) {
+                      addLog("Добавление буферизированного кандидата.");
+                      pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении буферизированного ICE-кандидата: ${e.message}`));
+                  }
+                  candidateBufferRef.current = [];
+              }
             } catch(e) {
                 const message = e instanceof Error ? e.message : String(e);
                 addLog(`Ошибка установки remote description (answer): ${message}`);
@@ -365,9 +372,14 @@ export default function WebRTCCaller() {
 
     setupFirebaseChildListener(`rooms/${roomKey}/calleeCandidates`, (snapshot) => {
         if (snapshot.exists()) {
-            addLog("Получен ICE-кандидат от собеседника.");
-            pc.addIceCandidate(new RTCIceCandidate(snapshot.val()))
-              .catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+            const candidate = new RTCIceCandidate(snapshot.val());
+            if (peerConnectionRef.current?.remoteDescription) {
+                addLog("Получен и сразу добавлен ICE-кандидат от собеседника.");
+                peerConnectionRef.current.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
+            } else {
+                addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
+                candidateBufferRef.current.push(candidate);
+            }
         }
     });
     
@@ -379,11 +391,9 @@ export default function WebRTCCaller() {
         addLog("Offer создан и сохранен в Firebase.");
     
         setCallState("waiting");
-        if (ringingAudioRef.current) {
-          ringingAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
-        }
+        ringingAudioRef.current?.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
     } catch(e) {
-        addLog(`Ошибка создания Offer: ${e}`);
+        addLog(`Ошибка создания Offer: ${e.message}`);
         setCallState('failed');
     }
   };
@@ -405,9 +415,14 @@ export default function WebRTCCaller() {
     
     setupFirebaseChildListener(`rooms/${roomKey}/callerCandidates`, (snapshot) => {
         if (snapshot.exists()) {
-             addLog("Получен ICE-кандидат от создателя.");
-             pc.addIceCandidate(new RTCIceCandidate(snapshot.val()))
-              .catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+             const candidate = new RTCIceCandidate(snapshot.val());
+             if (peerConnectionRef.current?.remoteDescription) {
+                addLog("Получен и сразу добавлен ICE-кандидат от создателя.");
+                peerConnectionRef.current.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
+             } else {
+                addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
+                candidateBufferRef.current.push(candidate);
+             }
         }
     });
 
@@ -423,12 +438,24 @@ export default function WebRTCCaller() {
           addLog("Получен Offer.");
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+            addLog("Remote description (Offer) успешно установлен.");
+            
+            if (candidateBufferRef.current.length > 0) {
+                addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов...`);
+                for (const candidate of candidateBufferRef.current) {
+                    addLog("Добавление буферизированного кандидата.");
+                    pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении буферизированного ICE-кандидата: ${e.message}`));
+                }
+                candidateBufferRef.current = [];
+            }
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             await update(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
             addLog("Answer создан и отправлен.");
           } catch(e) {
-             addLog(`Ошибка при обработке Offer или создании Answer: ${e}`);
+             const message = e instanceof Error ? e.message : String(e);
+             addLog(`Ошибка при обработке Offer или создании Answer: ${message}`);
              setCallState('failed');
           }
       }
@@ -498,8 +525,8 @@ export default function WebRTCCaller() {
     <>
       <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} steps={tutorialSteps} />
       <div className="w-full max-w-2xl mx-auto space-y-4">
-        <audio ref={ringingAudioRef} src={RINGTONE_PATH} loop playsInline style={{ display: "none" }} />
-        <audio ref={disconnectAudioRef} src={DISCONNECT_TONE_PATH} playsInline style={{ display: "none" }} />
+        <audio ref={ringingAudioRef} src={RINGTONE_PATH} loop playsInline preload="auto" style={{ display: "none" }} />
+        <audio ref={disconnectAudioRef} src={DISCONNECT_TONE_PATH} playsInline preload="auto" style={{ display: "none" }} />
         <Card className="w-full shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -576,3 +603,5 @@ export default function WebRTCCaller() {
     </>
   );
 }
+
+    
