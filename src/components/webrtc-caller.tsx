@@ -79,7 +79,6 @@ const iceServers = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun.services.mozilla.com' },
-    { urls: 'stun:stun.stunprotocol.org:3478' },
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelay',
@@ -100,14 +99,16 @@ export default function WebRTCCaller() {
   const [showLogs, setShowLogs] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [remoteStreamStatus, setRemoteStreamStatus] = useState('Ожидание инициализации');
+
 
   const { toast } = useToast();
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const ringingAudioRef = useRef<HTMLAudioElement | null>(null);
-  const disconnectAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ringingAudioRef = useRef<HTMLAudioElement>(null);
+  const disconnectAudioRef = useRef<HTMLAudioElement>(null);
   const firebaseListenersRef = useRef<Array<{ path: string; type: any }>>([]);
   const callStateRef = useRef(callState);
 
@@ -123,13 +124,6 @@ export default function WebRTCCaller() {
     if (!tutorialShown) {
       setShowTutorial(true);
       localStorage.setItem('webrtc-tutorial-shown', 'true');
-    }
-
-    if (ringingAudioRef.current) {
-      ringingAudioRef.current.load();
-    }
-    if (disconnectAudioRef.current) {
-      disconnectAudioRef.current.load();
     }
   }, []);
 
@@ -236,33 +230,24 @@ export default function WebRTCCaller() {
         device => device.kind === 'audiooutput'
       );
 
-      addLog(`Найдено аудиоустройств вывода: ${audioOutputDevices.length}`);
-      audioOutputDevices.forEach(d => addLog(`- ${d.label} (ID: ${d.deviceId})`));
-
       const earpiece = audioOutputDevices.find(
         device => device.deviceId === 'communications'
       );
 
       if (earpiece) {
-        addLog('Найден разговорный динамик ("communications"). Устанавливаю его.');
+        addLog('Найден разговорный динамик. Устанавливаю его.');
         await (remoteAudioRef.current as any).setSinkId(earpiece.deviceId);
         addLog('Аудиовыход успешно установлен на разговорный динамик.');
-        toast({ title: 'Звук переключен на разговорный динамик' });
       } else {
         addLog(
-          'Разговорный динамик ("communications") не найден. Будет использовано устройство по умолчанию.'
+          'Разговорный динамик не найден. Будет использовано устройство по умолчанию.'
         );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       addLog(`Ошибка при установке аудиовыхода: ${message}`);
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка аудиовыхода',
-        description: `Не удалось переключить динамик: ${message}`,
-      });
     }
-  }, [addLog, toast]);
+  }, [addLog]);
 
   const initializePeerConnection = useCallback(
     (isInitiator: boolean) => {
@@ -281,36 +266,48 @@ export default function WebRTCCaller() {
         };
 
         pc.ontrack = event => {
-          addLog('Получен удаленный медиапоток (ontrack).');
-          if (remoteAudioRef.current && event.streams && event.streams[0]) {
-            addLog('Аудио элемент и поток существуют. Присваиваю поток...');
-            remoteAudioRef.current.srcObject = event.streams[0];
+            addLog('Получен удаленный медиапоток (ontrack).');
+            if (remoteAudioRef.current && event.streams && event.streams[0]) {
+                addLog('Аудио элемент и поток существуют. Присваиваю поток...');
+                setRemoteStreamStatus('Поток получен! Проверьте громкость и нажмите Play.');
+                remoteAudioRef.current.srcObject = event.streams[0];
+                
+                const stream = event.streams[0];
+                addLog(`ID потока: ${stream.id}`);
+                const tracks = stream.getAudioTracks();
+                addLog(`Аудиодорожек в потоке: ${tracks.length}`);
+                if (tracks.length > 0) {
+                    addLog(`Состояние первой дорожки: ${tracks[0].readyState}, enabled: ${tracks[0].enabled}`);
+                }
 
-            addLog('Вызываю .play() для аудио элемента.');
-            const playPromise = remoteAudioRef.current.play();
+                addLog('Попытка воспроизведения...');
+                const playPromise = remoteAudioRef.current.play();
 
-            if (playPromise !== undefined) {
-              playPromise
-                .then(_ => {
-                  addLog('Воспроизведение успешно начато (promise resolved).');
-                   if (remoteAudioRef.current) {
-                        addLog(`Состояние плеера: paused=${remoteAudioRef.current.paused}, muted=${remoteAudioRef.current.muted}, volume=${remoteAudioRef.current.volume}`);
-                   }
-                })
-                .catch(error => {
-                  addLog(
-                    `!!! ОШИБКА ВОСПРОИЗВЕДЕНИЯ: ${error}. Браузер заблокировал авто-воспроизведение.`
-                  );
-                  toast({
-                    variant: 'destructive',
-                    title: 'Звук заблокирован',
-                    description: 'Нажмите на экран, чтобы включить звук.',
-                  });
-                });
+                if (playPromise !== undefined) {
+                    playPromise
+                      .then(_ => {
+                        addLog('Воспроизведение успешно начато (promise resolved).');
+                        if (remoteAudioRef.current) {
+                          addLog(`Состояние плеера: paused=${remoteAudioRef.current.paused}, muted=${remoteAudioRef.current.muted}, volume=${remoteAudioRef.current.volume}`);
+                          setRemoteStreamStatus('Воспроизведение начато автоматически.');
+                        }
+                      })
+                      .catch(error => {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        addLog(`!!! ОШИБКА АВТО-ВОСПРОИЗВЕДЕНИЯ: ${errorMessage}`);
+                        setRemoteStreamStatus(`Звук заблокирован. Нажмите Play на плеере. (${errorMessage})`);
+                        toast({
+                          variant: 'destructive',
+                          title: 'Звук может быть заблокирован',
+                          description: 'Нажмите Play на видном аудиоплеере, чтобы включить звук.',
+                          duration: 9000,
+                        });
+                      });
+                }
+            } else {
+                addLog('ontrack сработал, но аудио элемент или поток отсутствуют.');
+                setRemoteStreamStatus('Ошибка: ontrack сработал, но аудио элемент не найден.');
             }
-          } else {
-            addLog('ontrack сработал, но аудио элемент или поток отсутствуют.');
-          }
         };
 
         pc.onconnectionstatechange = () => {
@@ -352,11 +349,6 @@ export default function WebRTCCaller() {
       } catch (error) {
         addLog(`Критическая ошибка WebRTC: ${error}`);
         setCallState('failed');
-        toast({
-          variant: 'destructive',
-          title: 'Критическая ошибка',
-          description: 'Не удалось создать WebRTC соединение.',
-        });
       }
     },
     [roomKey, addLog, cleanup, setAudioOutputToEarpiece, toast]
@@ -405,6 +397,7 @@ export default function WebRTCCaller() {
       toast({ variant: 'destructive', title: 'Введите ключ комнаты' });
       return;
     }
+    setRemoteStreamStatus('Ожидание инициализации');
     setCallState('creating');
     addLog(`Создание комнаты: ${roomKey}`);
 
@@ -457,9 +450,7 @@ export default function WebRTCCaller() {
       await set(roomRef, { offer: { sdp: offer.sdp, type: offer.type } });
       addLog('Offer создан и сохранен в Firebase.');
       setCallState('waiting');
-      if (ringingAudioRef.current) {
-        ringingAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
-      }
+      ringingAudioRef.current?.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       addLog(`Ошибка создания Offer: ${message}`);
@@ -472,6 +463,7 @@ export default function WebRTCCaller() {
       toast({ variant: 'destructive', title: 'Введите ключ комнаты' });
       return;
     }
+    setRemoteStreamStatus('Ожидание инициализации');
     setCallState('joining');
     addLog(`Присоединение к комнате: ${roomKey}`);
 
@@ -494,9 +486,7 @@ export default function WebRTCCaller() {
             addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`)
           );
         } else {
-          addLog(
-            'Буферизация ICE-кандидата (remoteDescription еще не установлен).'
-          );
+          addLog('Буферизация ICE-кандидата (remoteDescription еще не установлен).');
           pendingCandidatesRef.current.push(candidate);
         }
       });
@@ -522,9 +512,7 @@ export default function WebRTCCaller() {
             );
             addLog('Remote description (Offer) успешно установлен.');
 
-            addLog(
-              `Обработка ${pendingCandidatesRef.current.length} ожидающих кандидатов.`
-            );
+            addLog(`Обработка ${pendingCandidatesRef.current.length} ожидающих кандидатов.`);
             for (const candidate of pendingCandidatesRef.current) {
               await pc.addIceCandidate(candidate);
               addLog('Ожидающий кандидат успешно добавлен.');
@@ -579,6 +567,9 @@ export default function WebRTCCaller() {
   };
 
   useEffect(() => {
+    ringingAudioRef.current?.load();
+    disconnectAudioRef.current?.load();
+    
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (
         callStateRef.current !== 'idle' &&
@@ -718,8 +709,16 @@ export default function WebRTCCaller() {
               </div>
               <AlertDescription>{desc}</AlertDescription>
             </Alert>
-            <p className="text-sm text-muted-foreground">Плеер удаленного аудио (для отладки):</p>
-            <audio ref={remoteAudioRef} controls playsInline className="w-full" />
+            
+            <div className="mt-4 rounded-md border border-dashed border-yellow-500/50 bg-yellow-950/20 p-4 space-y-3">
+                <p className="text-sm font-medium text-yellow-300">Панель отладки удаленного аудио</p>
+                <p className="text-xs text-yellow-400">
+                  Статус: <span className="font-medium text-yellow-200">{remoteStreamStatus}</span>
+                </p>
+                <audio ref={remoteAudioRef} controls className="w-full" />
+                <p className="text-xs text-muted-foreground">Этот плеер должен появиться сразу. Его статус изменится на "Поток получен", когда звонок соединится. Если звук не пойдет автоматически, попробуйте нажать Play.</p>
+            </div>
+
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2">
             {callState === 'idle' && (
