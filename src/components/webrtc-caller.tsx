@@ -288,7 +288,7 @@ export default function WebRTCCaller() {
       addLog("RTCPeerConnection успешно инициализирован.");
       return pc;
     } catch (error) {
-        addLog(`Ошибка создания PeerConnection: ${error}`);
+        addLog(`Критическая ошибка WebRTC: ${error}`);
         setCallState("failed");
         toast({variant: "destructive", title: "Критическая ошибка", description: "Не удалось создать WebRTC соединение."});
     }
@@ -357,7 +357,8 @@ export default function WebRTCCaller() {
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(roomData.answer));
             } catch(e) {
-                addLog(`Ошибка установки remote description (answer): ${e}`);
+                const message = e instanceof Error ? e.message : String(e);
+                addLog(`Ошибка установки remote description (answer): ${message}`);
             }
         }
     });
@@ -575,5 +576,3 @@ export default function WebRTCCaller() {
     </>
   );
 }
-
-    
