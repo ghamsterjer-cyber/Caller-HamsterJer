@@ -27,11 +27,13 @@ import {
   LogIn,
   RefreshCw,
   Share2,
+  VolumeX,
+  Volume2,
 } from "lucide-react";
 
 type CallState = "idle" | "creating" | "waiting" | "joining" | "active" | "failed" | "ending";
 
-const RINGTONE_DATA_URI = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjQ1LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGF2YzU4LjkyLjEwMAAAAAAAAAAAAAAAdXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXV1dXV1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1axA";
+const RINGTONE_DATA_URI = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjQ1LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGF2YzU4LjkyLjEwMAAAAAAAAAAAAAAAdXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXV1dXV1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1dXR1axA";
 const DISCONNECT_TONE_DATA_URI = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU3LjgyLjEwMAAAAAAAAAAAAAAA//tAwxAAAAAAAAAAAAFBTEFNRTMuMTAwAP/n/VAAAAG4AAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/n/VAYAAAMAgAAAAIAAAAAAAD/n/VAYAAAMAgAAAAIAAAAAA==";
 
 const tutorialSteps: TutorialStep[] = [
@@ -73,7 +75,9 @@ const iceServers = {
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun.services.mozilla.com" },
+    { urls: "stun:stun.openrelay.io:3478" },
   ],
+  iceTransportPolicy: "all",
 };
 
 export default function WebRTCCaller() {
@@ -83,6 +87,7 @@ export default function WebRTCCaller() {
   const [showLogs, setShowLogs] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [isMutedByBrowser, setIsMutedByBrowser] = useState(false);
 
 
   const { toast } = useToast();
@@ -133,6 +138,7 @@ export default function WebRTCCaller() {
     const previousState = callStateRef.current;
     setCallState('ending');
     addLog('Запускаю очистку ресурсов...');
+    setIsMutedByBrowser(false);
 
     if (ringingAudioRef.current) {
       ringingAudioRef.current.pause();
@@ -240,6 +246,20 @@ export default function WebRTCCaller() {
     }
   }, [addLog, toast]);
 
+  const handleManualPlay = useCallback(() => {
+    if (remoteAudioRef.current) {
+        addLog("Попытка ручного воспроизведения...");
+        remoteAudioRef.current.play().then(() => {
+            addLog("Ручное воспроизведение успешно!");
+            setIsMutedByBrowser(false);
+            toast({ title: 'Звук включен!', description: 'Теперь вы должны слышать собеседника.' });
+        }).catch(e => {
+            addLog(`Ошибка ручного воспроизведения: ${e.message}`);
+            toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось включить звук.' });
+        });
+    }
+  }, [addLog, toast]);
+
   const initializePeerConnection = useCallback(() => {
     try {
       addLog("Инициализация RTCPeerConnection...");
@@ -259,7 +279,27 @@ export default function WebRTCCaller() {
         addLog("Получен удаленный медиапоток.");
         if (event.streams && event.streams[0] && remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = event.streams[0];
-          remoteAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения аудио: ${e.message}`));
+          addLog("Источник аудио установлен для <audio> элемента.");
+
+          // Улучшенная логика воспроизведения
+          remoteAudioRef.current.load(); // Загружаем поток
+          const playPromise = remoteAudioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              addLog("Воспроизведение аудио успешно начато автоматически.");
+              setIsMutedByBrowser(false);
+            }).catch(error => {
+              addLog(`Автоматическое воспроизведение заблокировано браузером: ${error.message}`);
+              setIsMutedByBrowser(true);
+              toast({
+                  variant: 'destructive',
+                  title: "Звук заблокирован",
+                  description: "Нажмите кнопку 'Включить звук', чтобы слышать собеседника.",
+                  duration: 10000,
+              });
+            });
+          }
         }
       };
 
@@ -347,7 +387,6 @@ export default function WebRTCCaller() {
     const roomRef = ref(database, `rooms/${roomKey}`);
     await remove(roomRef);
 
-    // Listen for room changes (answer and deletion)
     setupFirebaseListener(`rooms/${roomKey}`, async (snapshot) => {
         if (!snapshot.exists()) {
             addLog("Комната удалена, завершение вызова.");
@@ -355,35 +394,25 @@ export default function WebRTCCaller() {
             return;
         }
         const roomData = snapshot.val();
-        if (roomData.answer && !answerHandledRef.current) {
+        if (roomData.answer && pc.signalingState !== 'stable' && !answerHandledRef.current) {
             answerHandledRef.current = true;
-            addLog("Получен Answer.");
+            addLog("Получен Answer. Устанавливаю remote description.");
             try {
-              if (pc.signalingState !== 'stable') {
                 await pc.setRemoteDescription(new RTCSessionDescription(roomData.answer));
-              } else {
-                addLog("Состояние уже stable, setRemoteDescription(answer) пропущен.");
-              }
-              addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов.`);
-              for(const candidate of candidateBufferRef.current) {
-                await pc.addIceCandidate(candidate);
-              }
-              candidateBufferRef.current = [];
             } catch(e) {
-                addLog(`Ошибка установки remote description или ICE: ${e}`);
+                addLog(`Ошибка установки remote description (answer): ${e.message}`);
             }
         }
     });
 
-    // Listen for callee's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/calleeCandidates`, (snapshot) => {
         if (snapshot.exists()) {
             const candidate = new RTCIceCandidate(snapshot.val());
             addLog("Получен ICE-кандидат от собеседника.");
             if (pc.remoteDescription) {
-              pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+              pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
             } else {
-              addLog("Буферизация ICE кандидата (remoteDescription еще не установлен).");
+              addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
               candidateBufferRef.current.push(candidate);
             }
         }
@@ -402,7 +431,7 @@ export default function WebRTCCaller() {
           ringingAudioRef.current.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
         }
     } catch(e) {
-        addLog(`Ошибка создания Offer: ${e}`);
+        addLog(`Ошибка создания Offer: ${e.message}`);
         setCallState('failed');
     }
   };
@@ -423,15 +452,14 @@ export default function WebRTCCaller() {
 
     const roomRef = ref(database, `rooms/${roomKey}`);
     
-    // Listen for caller's ICE candidates
     setupFirebaseChildListener(`rooms/${roomKey}/callerCandidates`, (snapshot) => {
         if (snapshot.exists()) {
             const candidate = new RTCIceCandidate(snapshot.val());
              addLog("Получен ICE-кандидат от создателя.");
             if (pc.remoteDescription) {
-              pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e}`));
+              pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
             } else {
-              addLog("Буферизация ICE кандидата (remoteDescription еще не установлен).");
+              addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
               candidateBufferRef.current.push(candidate);
             }
         }
@@ -450,10 +478,12 @@ export default function WebRTCCaller() {
           addLog("Получен Offer.");
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+            addLog("Remote description (Offer) успешно установлен.");
             
-            addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов.`);
+            addLog(`Обработка ${candidateBufferRef.current.length} ожидающих кандидатов.`);
             for(const candidate of candidateBufferRef.current) {
                 await pc.addIceCandidate(candidate);
+                addLog("Ожидающий кандидат успешно добавлен.")
             }
             candidateBufferRef.current = [];
 
@@ -463,7 +493,7 @@ export default function WebRTCCaller() {
             await update(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
             addLog("Answer создан и отправлен.");
           } catch(e) {
-             addLog(`Ошибка при обработке Offer или создании Answer: ${e}`);
+             addLog(`Ошибка при обработке Offer или создании Answer: ${e.message}`);
              setCallState('failed');
           }
       }
@@ -535,6 +565,8 @@ export default function WebRTCCaller() {
       <div className="w-full max-w-2xl mx-auto space-y-4">
         <audio ref={ringingAudioRef} loop playsInline style={{ display: "none" }} />
         <audio ref={disconnectAudioRef} playsInline style={{ display: "none" }} />
+        <audio ref={remoteAudioRef} playsInline style={{ display: "none" }}/>
+
         <Card className="w-full shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -570,7 +602,18 @@ export default function WebRTCCaller() {
               <div className="flex items-center">{icon}<AlertTitle className="ml-2">{title}</AlertTitle></div>
               <AlertDescription>{desc}</AlertDescription>
             </Alert>
-            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+            {isMutedByBrowser && callState === 'active' && (
+                <Alert variant="destructive" className="mt-4">
+                    <VolumeX className="h-4 w-4" />
+                    <AlertTitle>Звук заблокирован!</AlertTitle>
+                    <AlertDescription>
+                        Ваш браузер заблокировал автоматическое воспроизведение звука. Нажмите кнопку ниже, чтобы включить его.
+                        <Button onClick={handleManualPlay} className="mt-2 w-full">
+                            <Volume2 className="mr-2"/> Включить звук
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2">
             {callState === "idle" && (
