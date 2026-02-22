@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { database } from "@/lib/firebase";
-import { ref, set, onValue, off, push, remove, onChildAdded, update } from "firebase/database";
+import { ref, set, onValue, off, push, remove } from "firebase/database";
 import {
   Card,
   CardContent,
@@ -96,9 +96,12 @@ export default function WebRTCCaller() {
   const ringingAudioRef = useRef<HTMLAudioElement>(null);
   const disconnectAudioRef = useRef<HTMLAudioElement>(null);
   const firebaseListenersRef = useRef<Array<{ path: string; type: any }>>([]);
-  const isInitiatorRef = useRef(false);
   const callStateRef = useRef(callState);
-  const candidateBufferRef = useRef<RTCIceCandidate[]>([]);
+  
+  // Refs to prevent race conditions
+  const isAnswerSetRef = useRef(false);
+  const pendingCandidatesRef = useRef<RTCIceCandidate[]>([]);
+
 
   useEffect(() => {
     callStateRef.current = callState;
@@ -125,7 +128,7 @@ export default function WebRTCCaller() {
     setLogs((prev) => [...prev, timestampedMessage]);
   }, []);
   
-  const cleanup = useCallback(async () => {
+  const cleanup = useCallback(async (isInitiatedByRoomDeletion = false) => {
     if (callStateRef.current === 'idle' || callStateRef.current === 'ending') {
       return;
     }
@@ -139,15 +142,10 @@ export default function WebRTCCaller() {
       ringingAudioRef.current.currentTime = 0;
     }
 
-    if (
-      disconnectAudioRef.current &&
-      (previousState === 'active' || previousState === 'waiting')
-    ) {
-      disconnectAudioRef.current.play().catch((e) =>
-          addLog(`Не удалось воспроизвести звук отключения: ${e.message}`)
-      );
+    if (disconnectAudioRef.current && (previousState === 'active' || previousState === 'waiting')) {
+      disconnectAudioRef.current.play().catch((e) => addLog(`Не удалось воспроизвести звук отключения: ${e.message}`));
     }
-
+    
     firebaseListenersRef.current.forEach(({ path, type }) => {
       const dbRef = ref(database, path);
       off(dbRef, type);
@@ -156,47 +154,43 @@ export default function WebRTCCaller() {
     addLog("Слушатели Firebase удалены.");
 
     if (peerConnectionRef.current) {
-      peerConnectionRef.current.onicecandidate = null;
-      peerConnectionRef.current.ontrack = null;
-      peerConnectionRef.current.onconnectionstatechange = null;
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-      addLog("PeerConnection закрыт.");
+        peerConnectionRef.current.onicecandidate = null;
+        peerConnectionRef.current.ontrack = null;
+        peerConnectionRef.current.onconnectionstatechange = null;
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+        addLog("PeerConnection закрыт.");
     }
     
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-      addLog("Локальный медиапоток остановлен.");
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
+        addLog("Локальный медиапоток остановлен.");
     }
     
     if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = null;
+        remoteAudioRef.current.srcObject = null;
     }
     
-    isInitiatorRef.current = false;
-    candidateBufferRef.current = [];
-    setCallState("idle");
-    toast({ title: "Вызов завершен", description: "Вы можете начать новый вызов." });
-  }, [addLog, toast]);
+    isAnswerSetRef.current = false;
+    pendingCandidatesRef.current = [];
 
-  const handleEndCall = useCallback(async () => {
-    if (callStateRef.current === 'idle' || callStateRef.current === 'ending') {
-        return;
-    }
-    addLog("Завершение вызова по кнопке...");
-    if (roomKey) {
+    // Only remove the room if the cleanup was NOT initiated by the room being deleted
+    if (roomKey && !isInitiatedByRoomDeletion) {
         addLog(`Удаление комнаты rooms/${roomKey} из базы данных.`);
         const roomRef = ref(database, `rooms/${roomKey}`);
-        await remove(roomRef).then(() => {
-            addLog(`Комната rooms/${roomKey} успешно удалена.`);
-        }).catch(e => {
+        await remove(roomRef).catch(e => {
             addLog(`Ошибка при удалении комнаты: ${e.message}`);
         });
-    } else {
-        await cleanup();
     }
-  }, [roomKey, cleanup, addLog]);
+
+    setCallState("idle");
+    toast({ title: "Вызов завершен", description: "Вы можете начать новый вызов." });
+  }, [addLog, toast, roomKey]);
+
+  const handleEndCall = useCallback(async () => {
+      await cleanup(false);
+  }, [cleanup]);
 
 
   const setAudioOutputToEarpiece = useCallback(async () => {
@@ -237,8 +231,24 @@ export default function WebRTCCaller() {
       });
     }
   }, [addLog, toast]);
+  
+  const processPendingCandidates = useCallback(async () => {
+    if (pendingCandidatesRef.current.length > 0 && peerConnectionRef.current) {
+        addLog(`Обработка ${pendingCandidatesRef.current.length} ожидающих ICE кандидатов.`);
+        for (const candidate of pendingCandidatesRef.current) {
+            try {
+                await peerConnectionRef.current.addIceCandidate(candidate);
+                addLog('Ожидающий кандидат успешно добавлен.');
+            } catch (e) {
+                const message = e instanceof Error ? e.message : "Unknown error";
+                addLog(`Ошибка при добавлении ожидающего ICE кандидата: ${message}`);
+            }
+        }
+        pendingCandidatesRef.current = [];
+    }
+  }, [addLog]);
 
-  const initializePeerConnection = useCallback(() => {
+  const initializePeerConnection = useCallback((isInitiator: boolean) => {
     try {
       addLog("Инициализация RTCPeerConnection...");
       const pc = new RTCPeerConnection(iceServers);
@@ -246,7 +256,7 @@ export default function WebRTCCaller() {
       pc.onicecandidate = (event) => {
         if (event.candidate && roomKey) {
           addLog("Сгенерирован новый ICE-кандидат.");
-          const candidatesRefPath = `rooms/${roomKey}/${ isInitiatorRef.current ? "callerCandidates" : "calleeCandidates"}`;
+          const candidatesRefPath = `rooms/${roomKey}/${isInitiator ? "callerCandidates" : "calleeCandidates"}`;
           push(ref(database, candidatesRefPath), event.candidate.toJSON());
         }
       };
@@ -260,6 +270,7 @@ export default function WebRTCCaller() {
       };
 
       pc.onconnectionstatechange = async () => {
+        if (!pc) return;
         addLog(`Состояние соединения: ${pc.connectionState}`);
         switch (pc.connectionState) {
           case "connected":
@@ -270,9 +281,9 @@ export default function WebRTCCaller() {
           case "disconnected":
           case "closed":
           case "failed":
-            if (['active', 'waiting', 'joining', 'creating'].includes(callStateRef.current)) {
+             if (['active', 'waiting', 'joining', 'creating'].includes(callStateRef.current)) {
                 addLog(`Соединение разорвано (состояние: ${pc.connectionState}). Завершение вызова.`);
-                await cleanup();
+                await cleanup(true);
             }
             break;
         }
@@ -294,20 +305,13 @@ export default function WebRTCCaller() {
   
   const setupFirebaseListener = (path: string, callback: (snapshot: any) => void) => {
     const dbRef = ref(database, path);
-    onValue(dbRef, callback, (error) => {
+    const listener = onValue(dbRef, callback, (error) => {
         addLog(`Firebase listener error at ${path}: ${error.message}`);
     });
     firebaseListenersRef.current.push({ path, type: 'value' });
+    return listener;
   };
-
-  const setupFirebaseChildListener = (path: string, callback: (snapshot: any) => void) => {
-    const dbRef = ref(database, path);
-    onChildAdded(dbRef, callback, (error) => {
-        addLog(`Firebase child listener error at ${path}: ${error.message}`);
-    });
-    firebaseListenersRef.current.push({ path, type: 'child_added' });
-  };
-
+  
   const initLocalStream = async () => {
     try {
       addLog("Запрос доступа к микрофону...");
@@ -334,35 +338,29 @@ export default function WebRTCCaller() {
     }
     setCallState("creating");
     addLog(`Создание комнаты: ${roomKey}`);
-    isInitiatorRef.current = true;
     
     await initLocalStream();
-    const pc = initializePeerConnection();
+    const pc = initializePeerConnection(true);
     if (!pc) return;
 
     const roomRef = ref(database, `rooms/${roomKey}`);
     await remove(roomRef);
 
+    // Listen for the answer and room deletion
     setupFirebaseListener(`rooms/${roomKey}`, async (snapshot) => {
         if (!snapshot.exists()) {
             addLog("Комната удалена, завершение вызова.");
-            await cleanup();
+            await cleanup(true);
             return;
         }
         const roomData = snapshot.val();
-        if (roomData.answer && pc.remoteDescription?.type !== 'answer') {
+        if (roomData.answer && !isAnswerSetRef.current) {
+            isAnswerSetRef.current = true;
             addLog("Получен Answer.");
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(roomData.answer));
               addLog("Remote description (Answer) успешно установлен.");
-              if (candidateBufferRef.current.length > 0) {
-                  addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов...`);
-                  for (const candidate of candidateBufferRef.current) {
-                      addLog("Добавление буферизированного кандидата.");
-                      pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении буферизированного ICE-кандидата: ${e.message}`));
-                  }
-                  candidateBufferRef.current = [];
-              }
+              await processPendingCandidates();
             } catch(e) {
                 const message = e instanceof Error ? e.message : String(e);
                 addLog(`Ошибка установки remote description (answer): ${message}`);
@@ -370,26 +368,26 @@ export default function WebRTCCaller() {
         }
     });
 
-    setupFirebaseChildListener(`rooms/${roomKey}/calleeCandidates`, (snapshot) => {
-        if (snapshot.exists()) {
-            const candidate = new RTCIceCandidate(snapshot.val());
-            if (peerConnectionRef.current?.remoteDescription) {
-                addLog("Получен и сразу добавлен ICE-кандидат от собеседника.");
-                peerConnectionRef.current.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
-            } else {
-                addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
-                candidateBufferRef.current.push(candidate);
-            }
+    // Listen for callee's ICE candidates
+    const calleeCandidatesRef = ref(database, `rooms/${roomKey}/calleeCandidates`);
+    setupFirebaseListener(calleeCandidatesRef.path, (snapshot) => {
+      snapshot.forEach((childSnapshot) => {
+        const candidate = new RTCIceCandidate(childSnapshot.val());
+        if (pc.remoteDescription) {
+            addLog("Получен и сразу добавлен ICE-кандидат от собеседника.");
+            pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
+        } else {
+            addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
+            pendingCandidatesRef.current.push(candidate);
         }
+      });
     });
-    
+
     try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-    
         await set(roomRef, { offer: { sdp: offer.sdp, type: offer.type } });
         addLog("Offer создан и сохранен в Firebase.");
-    
         setCallState("waiting");
         ringingAudioRef.current?.play().catch(e => addLog(`Ошибка воспроизведения гудков: ${e.message}`));
     } catch(e) {
@@ -405,53 +403,46 @@ export default function WebRTCCaller() {
     }
     setCallState("joining");
     addLog(`Присоединение к комнате: ${roomKey}`);
-    isInitiatorRef.current = false;
 
     await initLocalStream();
-    const pc = initializePeerConnection();
+    const pc = initializePeerConnection(false);
     if (!pc) return;
 
     const roomRef = ref(database, `rooms/${roomKey}`);
     
-    setupFirebaseChildListener(`rooms/${roomKey}/callerCandidates`, (snapshot) => {
-        if (snapshot.exists()) {
-             const candidate = new RTCIceCandidate(snapshot.val());
-             if (peerConnectionRef.current?.remoteDescription) {
-                addLog("Получен и сразу добавлен ICE-кандидат от создателя.");
-                peerConnectionRef.current.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
-             } else {
-                addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
-                candidateBufferRef.current.push(candidate);
-             }
-        }
+    // Listen for caller's ICE candidates
+    const callerCandidatesRef = ref(database, `rooms/${roomKey}/callerCandidates`);
+    setupFirebaseListener(callerCandidatesRef.path, (snapshot) => {
+      snapshot.forEach((childSnapshot) => {
+          const candidate = new RTCIceCandidate(childSnapshot.val());
+          if (pc.remoteDescription) {
+              addLog("Получен и сразу добавлен ICE-кандидат от создателя.");
+              pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении ICE кандидата: ${e.message}`));
+          } else {
+              addLog("Буферизация ICE-кандидата (remoteDescription еще не установлен).");
+              pendingCandidatesRef.current.push(candidate);
+          }
+      });
     });
 
+    // Listen for the offer and room deletion
     setupFirebaseListener(`rooms/${roomKey}`, async (snapshot) => {
       if (!snapshot.exists()) {
         addLog("Комната была удалена создателем. Завершение вызова.");
-        await cleanup();
+        await cleanup(true);
         return;
       }
-
       const roomData = snapshot.val();
-      if (roomData.offer && pc.remoteDescription?.type !== 'offer') {
+      if (roomData.offer && !pc.remoteDescription) {
           addLog("Получен Offer.");
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
             addLog("Remote description (Offer) успешно установлен.");
-            
-            if (candidateBufferRef.current.length > 0) {
-                addLog(`Обработка ${candidateBufferRef.current.length} буферизированных ICE кандидатов...`);
-                for (const candidate of candidateBufferRef.current) {
-                    addLog("Добавление буферизированного кандидата.");
-                    pc.addIceCandidate(candidate).catch(e => addLog(`Ошибка при добавлении буферизированного ICE-кандидата: ${e.message}`));
-                }
-                candidateBufferRef.current = [];
-            }
+            await processPendingCandidates();
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            await update(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
+            await set(roomRef, { ...roomData, answer: { sdp: answer.sdp, type: answer.type } });
             addLog("Answer создан и отправлен.");
           } catch(e) {
              const message = e instanceof Error ? e.message : String(e);
@@ -488,13 +479,9 @@ export default function WebRTCCaller() {
     }
   };
 
-
   useEffect(() => {
     return () => {
-      if (roomKey && callStateRef.current !== 'idle' && callStateRef.current !== 'ending') {
-          remove(ref(database, `rooms/${roomKey}`));
-      }
-      cleanup();
+      cleanup(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -603,7 +590,3 @@ export default function WebRTCCaller() {
     </>
   );
 }
-
-    
-
-    
