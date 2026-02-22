@@ -68,6 +68,7 @@ const tutorialSteps: TutorialStep[] = [
     },
 ];
 
+// Добавлен TURN-сервер для повышения надежности соединения
 const iceServers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -76,6 +77,16 @@ const iceServers = {
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.services.mozilla.com' },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelay",
+      credential: "openrelay",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelay",
+      credential: "openrelay",
+    },
   ],
 };
 
@@ -98,7 +109,6 @@ export default function WebRTCCaller() {
   const firebaseListenersRef = useRef<Array<{ path: string; type: any }>>([]);
   const callStateRef = useRef(callState);
   
-  // Refs to prevent race conditions
   const isAnswerSetRef = useRef(false);
   const pendingCandidatesRef = useRef<RTCIceCandidate[]>([]);
 
@@ -114,13 +124,16 @@ export default function WebRTCCaller() {
         localStorage.setItem('webrtc-tutorial-shown', 'true');
       }
       
-      ringingAudioRef.current = new Audio(RINGTONE_PATH);
-      ringingAudioRef.current.loop = true;
-      disconnectAudioRef.current = new Audio(DISCONNECT_TONE_PATH);
+      const ringtone = new Audio(RINGTONE_PATH);
+      ringtone.loop = true;
+      ringingAudioRef.current = ringtone;
+
+      const disconnectTone = new Audio(DISCONNECT_TONE_PATH);
+      disconnectAudioRef.current = disconnectTone;
 
       // Preload audio
-      ringingAudioRef.current.load();
-      disconnectAudioRef.current.load();
+      ringtone.load();
+      disconnectTone.load();
   }, []);
 
   const addLog = useCallback((message: string) => {
@@ -595,5 +608,3 @@ export default function WebRTCCaller() {
     </>
   );
 }
-
-    
